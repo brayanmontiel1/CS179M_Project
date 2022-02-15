@@ -1,0 +1,26 @@
+[
+    { 
+      "first": "John", 
+      "last": "Keogh", 
+      "age": 35,
+      "username": "jkeogh"
+    },
+    {
+      "first": "Aaron", 
+      "last": "Donald", 
+      "age": 30,
+      "username": "adonald" 
+    },
+    {
+      "first": "Joe", 
+      "last": "Burrow", 
+      "age": 25,
+      "username": "jburrow" 
+    },
+    {
+      "first": "Ariana", 
+      "last": "Grande", 
+      "age": 28,
+      "username": "agrande" 
+    }
+  ]
