@@ -11,7 +11,7 @@ sg.theme('DefaultNoMoreNagging')
 
 #importing users - users.json contains user info and login credentials
 # Opening JSON file
-users_file = open('SAIL_Project/CS179M_Project/users.json')
+users_file = open('users.json')
 # returns JSON object as 
 # a dictionary
 users_dict = json.load(users_file)
@@ -24,7 +24,7 @@ print(auth_users)
 
 #gets full name of user based on username 
 def getFullName(username):      ##working
-    users_file = open('SAIL_Project/CS179M_Project/users.json')
+    users_file = open('users.json')
     users_dict = json.load(users_file)
     full_name = "none"
     for item in users_dict:     #search for matching username to retrieve info
