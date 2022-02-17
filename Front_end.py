@@ -22,7 +22,7 @@ for item in users_dict:     #append usernames to auth_user array
 users_file.close()
 print(auth_users)
 
-#gets full name of user based on username 
+#---------------RETURNS USER FULL NAME METHOD------------------------
 def getFullName(username):      ##working
     users_file = open('SAIL_Project/CS179M_Project/users.json')
     users_dict = json.load(users_file)
@@ -33,22 +33,30 @@ def getFullName(username):      ##working
     users_file.close()
     return full_name
 
-#returns time and date in military format-ish
+#---------------MILITARY TIME AND DATE METHOD------------------------
 def getTimeandDate():   ##working
     today = datetime.datetime.now()
     date_time = today.strftime("%d-%m-%Y %H:%M:%S") ##military date DD-MM-YYYY clock 24hr
     #print(date_time)
     return date_time
 
-def login(users_array): ##semi working --- need to format
-    #currentUser = user that is logged in 
-    #loginTime = date and time of login in military format
-    global currentUser, loginTime 
-    layout = [[sg.Text('Log In', justification='center', size =(15, 1), font=40)],
-            [sg.Text("Username", size =(15, 1), font=16), sg.InputText(key='-usrnm-', font=16)],
-            [sg.Button('Login'),sg.Button('Cancel')]]
+#---------------LOGIN PAGE LAYOUT METHOD------------------------------
+def login(users_array): #working --- needs touch up
+    #currentUser : user that is logged in 
+    #loginTime : date and time of login in military format
+    #center items using columns : [sg.Column([ ], justification='center')]
+    global currUser, loginTime, fullName
+    #adjust filename if needed for your pc -- Remember to change at production time
+    my_img = sg.Image(filename='SAIL_Project/CS179M_Project/img/SaIL.png', key='-sail_logo-')
+    
+    layout =[
+                [sg.Column([[my_img]], justification='center')],
+                [sg.Column([[sg.Text('Log In:', font=40)]], justification='center')],   
+                [sg.Column([[sg.Input(justification='center', key='-usrnm-')]], justification='center')], 
+                [sg.Column([[sg.Button('Login'), sg.Button('Cancel')]], justification='center')],
+            ]
 
-    window = sg.Window("SAIL ENTERPRISE - LOGIN", layout, size=(900, 600), resizable=True)
+    window = sg.Window("SAIL ENTERPRISE - LOGIN", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0))
 
     while True:
         event,values = window.read()
@@ -56,44 +64,66 @@ def login(users_array): ##semi working --- need to format
             break ##change this back to menu page or login page depending if theres existing user
         else:
             if event == "Login":
-                if values['-usrnm-'] in users_array:
-                    currentUser = values['-usrnm-']
-                    fullName = getFullName(currentUser)
+                if values['-usrnm-'] in users_array: ##---sucessful login
+                    currUser = values['-usrnm-']
+                    fullName = getFullName(currUser)
                     loginTime = getTimeandDate
                     print(fullName)
                     print(loginTime)
-                    sg.popup("Welcome " , fullName)  ##change this to menu page window 
+                    sg.popup("Welcome " , fullName) 
                     break
-                elif values['-usrnm-'] not in users_array:
+                elif values['-usrnm-'] not in users_array: ##---invalid login
                     sg.popup("Invalid login. Try again")
+            break
+    #selectJob(currUser, fullName, loginTime) -- have to figure out how to launch after login
+    window.close()
+
+def selectJob(currUser, fullName, loginTime): ##semi working --- need to format
+    global selectedJob
+    my_img = sg.Image(filename='SAIL_Project/CS179M_Project/img/SaIL.png', key='-sail_logo-')
+    
+    layout =[
+                [sg.Column([[sg.Text('Current User:', fullName)]], justification='left')],  
+                [sg.Column([[sg.Text('Login Time:', loginTime)]], justification='left')],  
+                [sg.Column([[my_img]], justification='center')],
+                [sg.Column([[sg.Text('Select an option below to continue:')]], justification='center')], 
+                [sg.Column([[sg.Button('Start New Load/Unload')]], justification='center')],  
+                [sg.Column([[sg.Button('Start New Balancing Job')]], justification='center')],
+                [sg.Column([[sg.Button('Login')]], justification='center')],
+            ]
+
+    window = sg.Window("SAIL ENTERPRISE - Select Job", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0))
+
+    while True:
+        event = window.read()
+        #selectedJob : Load/unload = 1, Balancing = 2, Login = 3 
+        #  ^will use to know what job is selected at upload manifest layout
+        if event == sg.WIN_CLOSED:
+            break #exits below
+        else:
+            if event == "Start New Load/Unload":
+                sg.popup("Starting New Load/Unload Job") #Placeholder - forward to upload manifest
+            elif event == "Start New Balancing Job":
+                sg.popup("Starting New Load/Unload Job") #Placeholder - forward to upload manifest
+            elif event == "Login": 
+                login(auth_users) #adjust to wait for another choice if login page has cancel(in login)
             break
     window.close()
 
-
-#code below sourced from [1] in Reference.txt as inspo for layouts
-# ----------- Create the 3 layouts this Window will display -----------
-layout1 = [[sg.Text('Login Page')],
-              [sg.Text('Username: '), sg.Input()]]
-
-layout2 = [[sg.Text('This is layout 2')],
-           [sg.Input(key='-IN-')],
-           [sg.Input(key='-IN2-')]]
-
-layout3 = [[sg.Text('This is layout 3 - It is all Radio Buttons')],
-           *[[sg.R(f'Radio {i}', 1)] for i in range(8)]]
-
-# ----------- Create actual layout using Columns and a row of Buttons
-layout = [[sg.Column(layout1, key='-COL1-'), sg.Column(layout2, visible=False, key='-COL2-'), sg.Column(layout3, visible=False, key='-COL3-')],
-          [sg.Button('Cycle Layout'), sg.Button('1'), sg.Button('2'), sg.Button('3'), sg.Button('Exit')]]
-
-window = sg.Window('SAIL ENTERPRISE', layout, size=(900, 600), resizable=True)
-
-layout = 1  # The currently visible layout
-while True:
+#infinte running window -- have to CTRL+C then ENTER to exit program in terminal
+""" while True:
     getTimeandDate()
     login(auth_users)
-    event, values = window.read()
-    print(event, values)
-    if event == None or event == 'Exit':     # If user closed window with X or if user clicked "Exit" button then exit
-        break
-    window.close()  
+    #event, values = window.read()
+    #print(event, values)
+    #if event == None or event == 'Exit':     # If user closed window with X or if user clicked "Exit" button then exit
+    #    break
+    #window.close()   """
+
+#REGULAR MAIN()
+if __name__ == "__main__":
+    getTimeandDate()
+    login(auth_users) 
+    selectJob(currUser, fullName, loginTime)
+
+

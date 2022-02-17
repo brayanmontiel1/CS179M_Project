@@ -2,25 +2,31 @@
     { 
       "first": "John", 
       "last": "Keogh", 
-      "age": 35,
+      "workID": 1,
       "username": "jkeogh"
     },
     {
-      "first": "Aaron", 
-      "last": "Donald", 
-      "age": 30,
-      "username": "adonald" 
+      "first": "Brayan", 
+      "last": "Montiel", 
+      "workID": 2,
+      "username": "bmontiel" 
     },
     {
-      "first": "Joe", 
-      "last": "Burrow", 
-      "age": 25,
-      "username": "jburrow" 
+      "first": "Alec", 
+      "last": "Asatoorian", 
+      "workID": 3,
+      "username": "aasatoorian" 
     },
     {
-      "first": "Ariana", 
-      "last": "Grande", 
-      "age": 28,
-      "username": "agrande" 
+      "first": "Thomas", 
+      "last": "Henningston", 
+      "workID": 4,
+      "username": "thenningston" 
+    },
+    {
+      "first": "Tommy", 
+      "last": "Chhur", 
+      "workID": 5,
+      "username": "tchhur" 
     }
   ]
