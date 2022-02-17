@@ -87,9 +87,33 @@ def LUgoal(state): # COMPLETE: checks goal state for load/unload job
 def LUexpand(state, q): # Incomplete
     print()
 
+def findTops(state): #COMPLETE: find the top containers of every row (includes NAN containers if applicable)
+    ship = state.ship
+    tops = []
+    for j in range(12):
+        for i in range(9,-1,-1):
+            if (ship[i][j].dsc != "UNUSED"):
+                tops.append(i)
+                break
+        if(len(tops) != (j+1)):
+            tops.append(-1)
+    return tops
+
+def LUheuristic(state): # COMPLETE: find h(n) of a given state, store in state parameter automatically
+    ship = state.ship
+    h = 0
+    for i in range(12):
+        for j in range(10):
+            if(ship[j][i].unl):
+                for k in range(j+1,10):
+                    if(ship[k][i].dsc != "UNUSED"):
+                        h+=3
+                break
+    state.hn = h
+
 def exampleState(): # temporary function to test stuff, will delete
     ship = []
-    for i in range(2):
+    for i in range(3):
         row = []
         for j in range(12):
             cont = Container()
@@ -98,7 +122,7 @@ def exampleState(): # temporary function to test stuff, will delete
             cont.unl = False
             row.append(cont)
         ship.append(row)
-    for i in range(8):
+    for i in range(7):
         row = []
         for j in range(12):
             cont = Container()
@@ -107,6 +131,9 @@ def exampleState(): # temporary function to test stuff, will delete
             cont.unl = False
             row.append(cont)
         ship.append(row)
+    ship[2][2].dsc = "UNUSED"
+    ship[1][2].dsc = "UNUSED"
+    #ship[0][2].dsc = "UNUSED"
     state = LUstate()
     state.ship = ship
     state.lds = []
