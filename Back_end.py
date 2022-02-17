@@ -19,7 +19,7 @@ class LUstate(object):
     pass
 
 def getManifest(): # INCOMPLETE: will get the filename from the upload
-    return "exampleManifest.txt"
+    return "manifests/exampleManifest.txt"
 
 def loadManifest(filename): # INCOMPLETE: loads 2D array with manifest
     # make 2D array (10 col x 12 row)
