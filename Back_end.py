@@ -1,5 +1,6 @@
 import heapq
 import datetime
+import numpy as np
 
 file = open(".saved/currentUser.txt", "r")
 user = file.read() # Global variable to store currently logged in user
@@ -21,14 +22,41 @@ class LUstate(object):
 def getManifest(): # INCOMPLETE: will get the filename from the upload
     return "manifests/exampleManifest.txt"
 
-def loadManifest(filename): # INCOMPLETE: loads 2D array with manifest
+def loadManifest(filename): # COMPLETE: loads 2D array with manifest
     # make 2D array (10 col x 12 row)
+    manifest = np.empty([10, 12], dtype = Container)
     # open the file
+    file = open(filename, 'r')
+    f = file.readlines()
     # for each line in the file
+    for line in f:
         # get attributes in a container struct
+        c = Container()
+        c.unload = False
+        c.weight = line[10:15]
+        #making sure we do not take in new line characters in the description
+        if(line[-1] == '\n'):
+            c.description = line[18:-1]
+        else:
+            #the last line in the file will not have a new line character
+            c.description = line[18:]
+
         # use position in file to fill in array with the container you just made
+        #row = int(line[4:6])
+        #col = int(line[1:3])
+        manifest[int(line[1:3]) - 1][int(line[4:6]) - 1] = c
+
+    #populate virtual area with unused container spaces
+    for col in range(8, 10):
+        for row in range(0, 12):
+            c = Container()
+            c.weight = "00000"
+            c.unload = False
+            c.description = "UNUSED"
+            manifest[col][row] = c
+
     # return array
-    return
+    return manifest
 
 def addLog(logText): # COMPLETE: Appends whatever is in logText to appropriate text file, automatic timestamp
     time = datetime.datetime.now()
@@ -92,7 +120,7 @@ def LUheuristic(state): # COMPLETE: find h(n) of a given state, store in state p
             if(ship[i][j].desc != "UNUSED"):
                 h+=1
 
-    h+=(len(state.loads)*nearestLoadDist(tops)) 
+    h+=(len(state.loads)*nearestLoadDist(tops))
 
     state.h = h
 
@@ -110,7 +138,7 @@ def LUsearch(initState): # INCOMPLETE: A* search for LU jobs
             return curState # return state as solution if true
         else:
             LUexpand(curState, q) # expand state if false
-        
+
         # push back state into list of checked state?
 
     print("No Solution") # print error if no solution
