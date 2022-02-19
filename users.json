@@ -3,30 +3,30 @@
       "first": "John", 
       "last": "Keogh", 
       "workID": 1,
-      "username": "jkeogh"
+      "username": "john"
     },
     {
       "first": "Brayan", 
       "last": "Montiel", 
       "workID": 2,
-      "username": "bmontiel" 
+      "username": "brayan" 
     },
     {
       "first": "Alec", 
       "last": "Asatoorian", 
       "workID": 3,
-      "username": "aasatoorian" 
+      "username": "alec" 
     },
     {
       "first": "Thomas", 
       "last": "Henningston", 
       "workID": 4,
-      "username": "thenningston" 
+      "username": "thomas" 
     },
     {
       "first": "Tommy", 
       "last": "Chhur", 
       "workID": 5,
-      "username": "tchhur" 
+      "username": "tommy" 
     }
   ]
