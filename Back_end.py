@@ -1,13 +1,9 @@
-# Todo:
-# 1. Account for loads when unloads are complete (push loads on every expand, not just unloads?)
-# 2. Make a more accurate g(n) value by holding current crane position and accounting for how 
-# long it takes to go somewhere, even if its not currently holding a container (in-hand with 1)
-
 import heapq
 import datetime
 import numpy as np
 
 entryCount = 0 # tie breaker for states with equal priority
+containerNum = 0 # tracks unique containers
 
 file = open(".saved/currentUser.txt", "r")
 user = file.read() # Global variable to store currently logged in user
@@ -22,6 +18,7 @@ class LUstate(object):
     # state.ship
     # state.g
     # state.h
+    # state.cranePos
     # state.loads
     # state.unloads
     # state.moves
@@ -32,6 +29,9 @@ def getManifest(): # INCOMPLETE: will get the filename from the upload
     return "manifests/exampleManifest.txt"
 
 def loadManifest(filename): # COMPLETE: loads 2D array with manifest
+    # track container numbers
+    global containerNum
+    containerNum = 0
     # make 2D array (10 row x 12 col)
     manifest = np.empty([10, 12], dtype = Container)
     # open the file
@@ -49,6 +49,13 @@ def loadManifest(filename): # COMPLETE: loads 2D array with manifest
             #the last line in the file will not have a new line character
             c.desc = line[18:]
 
+        # assign unique num to containers
+        if(c.desc != "UNUSED"):
+            c.num = containerNum
+            containerNum+=1
+        else:
+            c.num = -1
+
         # use position in file to fill in array with the container you just made
         #row = int(line[4:6])
         #col = int(line[1:3])
@@ -60,6 +67,7 @@ def loadManifest(filename): # COMPLETE: loads 2D array with manifest
             c = Container()
             c.weight = 0
             c.desc = "UNUSED"
+            c.num = -1
             manifest[col][row] = c
 
     # return array
@@ -94,16 +102,22 @@ def LUjob(): # COMPLETE: initalizes state and computes the goal
     filename = getManifest()
     initState = LUstate()
     initState.ship = loadManifest(filename)
+    initState.cranePos = (-1,-1) # crane starts on dock by trucks
     retrieveLU(initState)
     LUheuristic(initState)
     initState.g = 0
     initState.moves = []
+    start = datetime.datetime.now()
+    start = start.strftime("%H:%M:%S")
     goal = LUsearch(initState)
+    end = datetime.datetime.now()
+    end = end.strftime("%H:%M:%S")
+    print(start,end)
     movesList(goal)
 
 def retrieveLU(state): # INCOMPLETE: retrieve loads and unloads needed from user
     state.loads = []
-    state.unloads = [(0,0),(2,8)]
+    state.unloads = []
 
 def LUsearch(initState): # COMPLETE: A* search for LU jobs
     global entryCount
@@ -136,80 +150,124 @@ def LUexpand(state, q): # COMPLETE: expands given state for LU job
     tops = findTops(state)
     for j in range(12): # for each column
         i = tops[j] # get row of container to move
+        if(i < 0): # no containers in that column
+            continue
         if((i,j) in state.unloads): # container is an unload
             copy = LUstateCopy(state)
             copy.unloads.remove((i,j)) # remove container from unloads
+            if(copy.cranePos == (-1,-1)): # check if crane is by truck
+                copy.g += (abs(i-8) + abs(j-0) + 2)
+            else: # move crane to container position
+                copy.g += manhattenDist(copy.cranePos[0],copy.cranePos[1],i,j,tops)
             copy.g += (abs(i-8) + abs(j-0) + 2) # add distance to unload container to g
+            copy.cranePos = (-1,-1) # leave cranePos at the truck
             copy.ship[i][j].weight = 0 # move container
             copy.ship[i][j].desc = "UNUSED"
+            copy.ship[i][j].num = -1
             copy.moves.append((i,j,"Truck")) # track move
             LUheuristic(copy) # calculate new heuristic
             heapq.heappush(q, ((copy.g + copy.h), entryCount, copy)) # push copy to queue
             entryCount+=1
-            if (len(copy.loads) > 0):
-                for c in range(12): # for every other column
-                    r = tops[c]+1 # get placement location (1 above top)
-                    if(r < 10): # Check that the col is not the max col height
-                        copy2 = LUstateCopy(copy)
-                        copy2.g += (abs(r-8) + abs(c-0) + 2) # add cost of load to g
-                        copy2.ship[r][c].weight = copy2.loads[-1].weight # move container
-                        copy2.ship[r][c].desc = copy2.loads[-1].desc
-                        copy2.loads = copy2.loads[:-1] # remove container from loads
-                        copy.moves.append(("Truck",r,c)) # track move   
-                        LUheuristic(copy2) # calculate new heuristic
-                        heapq.heappush(q, ((copy2.g + copy2.h), entryCount, copy2)) # push copy to queue
-                        entryCount+=1
         else: # container is not an unload
             for c in range(12): # for every other column
                 if (c != j):
                     r = tops[c]+1 # get row location of move (1 above the top)
                     if((r < 10) and (state.ship[i][j].desc != "NAN")): # Check that the col is not the max col height or top container is NAN
                         copy = LUstateCopy(state)
+                        if(copy.cranePos == (-1,-1)): # check if crane is by truck
+                            copy.g += (abs(i-8) + abs(j-0) + 2)
+                        else: # move crane to container position
+                            copy.g += manhattenDist(copy.cranePos[0],copy.cranePos[1],i,j,tops)
                         copy.g += manhattenDist(i,j,r,c,tops) # add cost of move to g
+                        copy.cranePos = (r,c) # leave crane at dropoff position
                         copy.ship[r][c].weight = copy.ship[i][j].weight # move container
                         copy.ship[r][c].desc = copy.ship[i][j].desc
+                        copy.ship[r][c].num = copy.ship[i][j].num
                         copy.ship[i][j].weight = 0
                         copy.ship[i][j].desc = "UNUSED"
+                        copy.ship[i][j].num = -1
                         copy.moves.append((i,j,r,c))
                         LUheuristic(copy) # calculate new heuristic
                         heapq.heappush(q, ((copy.g + copy.h), entryCount, copy)) # push copy to queue
                         entryCount+=1
+    if (len(copy.loads) > 0): # load a container to every column
+        for c in range(12): # for every column
+            r = tops[c]+1 # get placement location (1 above top)
+            if(r < 10): # Check that the col is not the max col height
+                copy = LUstateCopy(state)
+                if(copy.cranePos != (-1,-1)): # check if crane is not by truck
+                    copy.g += (abs(copy.cranePos[0]-8) + abs(copy.cranePos[1]-0) + 2) # move crane to truck position
+                copy.g += (abs(r-8) + abs(c-0) + 2) # add cost of load to g
+                copy.cranePos = (r,c) # leave crane at dropoff position
+                copy.ship[r][c].weight = copy.loads[-1].weight # move container
+                copy.ship[r][c].desc = copy.loads[-1].desc
+                copy.ship[r][c].num = copy.loads[-1].num
+                copy.loads = copy.loads[:-1] # remove container from loads
+                copy.moves.append(("Truck",r,c)) # track move   
+                LUheuristic(copy) # calculate new heuristic
+                heapq.heappush(q, ((copy.g + copy.h), entryCount, copy)) # push copy to queue
+                entryCount+=1
 
 def LUheuristic(state): # COMPLETE: find h(n) of a given LUstate, store in state parameter automatically
     tops = findTops(state)
     ship = state.ship
+    tempPos = state.cranePos
     h = 0
     for j in range(12): # for each col
         for i in range(tops[j]+1): # for each row with filled containers
             if((i,j) in state.unloads): # check if container needs to be unloaded
-                h+=(abs(i-8) + abs(j-0) + 2) # add distance to unload container
-                for k in range(i+1,tops[j]+1): # for the rest of the containers in col with unload
-                    if(ship[k][j].desc == "NAN"):
-                        continue
-                    if(ship[k][j].desc != "UNUSED") and ((k,j) in state.unloads):
-                        h+=(abs(k-8) + abs(j-0) + 2) # add distance to unload container
-                        continue
-                    if(ship[k][j].desc != "UNUSED") and not ((k,j) in state.unloads):
-                        h+=nearestColDist(k,j,tops) # add nearest distance to remove container from col
-                        continue
+                for k in range(tops[j],i-1,-1): # for the rest of the containers from top to found unload
+                    if(tempPos == (-1,-1)):
+                        h+=(abs(k-8) + abs(j-0) + 2) # move crane from truck to container
+                    else:
+                        h+=(abs(k-tempPos[0]) + abs(j-tempPos[1])) # move crane to container
+
+                    if((k,j) in state.unloads): # if container is unload, add unload dist
+                        h+=(abs(k-8) + abs(j-0) + 2) # move container to truck
+                        tempPos = (-1,-1) # set crane position at truck
+                    else: # if not, add nearest distance that does not overestimate
+                        pos = nearestDistPos(k,j,tops)
+                        h+=(abs(pos[0]-tempPos[0]) + abs(pos[1]-tempPos[1]))
+                        tempPos = pos
                 break
 
     for i in range(8,10):
         for j in range(12):
             if(ship[i][j].desc != "UNUSED"):
-                h+=1 # add 1 for each container in temporary rows
+                h+=nearestTempRemoval(i,j,tops) # add nearest distance to column not reaching into temp rows
 
     h+=(len(state.loads)*nearestLoadDist(tops)) # add nearest distance to load container for each container in loads
 
     state.h = h
 
 # LU Helper Functions
-def nearestColDist(r,c,tops): # COMPLETE: finds nearest manhatten to place container in another column
-    if(c == 0):
-        return (abs(r-(tops[c+1]+1))+1)
-    if(c == 11):
-        return (abs(r-(tops[c-1]+1))+1)
-    return min((abs(r-(tops[c+1]+1))+1),(abs(r-(tops[c-1]+1))+1))
+def nearestDistPos(r,c,tops): # COMPLETE: finds nearest distance to remove container without overestimating
+    if(c == 0): # first column
+        if(tops[c+1]+1 >= r): # if column 2 on par or above, nearest is on top of that column
+            return (tops[c+1]+1,c+1)
+        else: # else, just move one over (estimating on columns lower may overestimate)
+            return (r,c+1)
+    if(c == 11): # last column
+        if(tops[c-1]+1 >= r): # if column 11 on par or above, nearest is on top of that column
+            return (tops[c-1]+1,c-1)
+        else: # else, just move one over (estimating on columns lower may overestimate)
+            return (r,c-1)
+    if((tops[c+1]+1 >= r) and (tops[c-1]+1 >= r)): # if both columns taller, estimate by top of shorter column
+        if(tops[c-1] >= tops[c+1]): # find shorter column, return that position
+            return (tops[c+1]+1,c+1)
+        else: 
+            return (tops[c-1]+1,c-1)
+    else: # if not, just move one over so we dont overestimate
+        return (r,c+1)
+
+def nearestTempRemoval(i,j,tops): # COMPLETE: finds nearest distance to column position not in temp row
+    min = float('inf')
+    for k in range(12):
+        if(tops[k]+1 < 8): # column has an empty space not in temp row
+            val = (abs(7-i) + abs(k-j)) # place in top space (so we dont overestimate)
+            if val < min:
+                min = val
+    return min # return which column provides minimum
 
 def nearestLoadDist(tops): # COMPLETE: finds nearest manhatten to place container being loaded
     min = float('inf')
@@ -237,6 +295,7 @@ def LUstateCopy(state): # COMPLETE: Copies an LU state
     
     copy.unloads = state.unloads.copy() # unload array is tuples, so this works
     copy.moves = state.moves.copy() # moves array is tuples, so this works
+    copy.cranePos = state.cranePos
 
     return copy
 
@@ -252,11 +311,7 @@ def LUstateCheck(state, checkedStates): # COMPLETE: checks if state and states i
         same = True
         for j in range(10):
             for k in range(12): # for every container on the ship
-                c1 = ship[j][k]
-                c2 = curShip[j][k]
-                if(c1.desc != c2.desc): # containers are not equivolent, so state is not the same
-                    same = False
-                if(c1.weight != c2.weight): # containers are not equivolent, so state is not the same
+                if(ship[j][k].num != curShip[j][k].num): # containers are not equivolent, so state is not the same
                     same = False
         if(same): # if same, return true
             return True
@@ -300,6 +355,7 @@ def containerCopy(container): # COMPLETE: Copies a Container
     copy = Container()
     copy.weight = container.weight
     copy.desc = container.desc
+    copy.num = container.num
     return copy
 
 def movesList(state): # COMPLETE: Prints a states move list
