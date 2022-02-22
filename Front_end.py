@@ -23,7 +23,7 @@ global currUser, loginTime, fullName , manifest
 
 heading_font = ("Arial, 24")
 body_font = ("Arial, 14")
-users_file = open('SAIL_Project/CS179M_Project/users.json')
+users_file = open('CS179M_Project/users.json')
 # returns JSON object as 
 # a dictionary
 users_dict = json.load(users_file)
@@ -36,7 +36,7 @@ print(auth_users)
 
 #---------------RETURNS USER FULL NAME METHOD------------------------
 def getFullName(username):      ##working
-    users_file = open('SAIL_Project/CS179M_Project/users.json')
+    users_file = open('CS179M_Project/users.json')
     users_dict = json.load(users_file)
     full_name = "none"
     for item in users_dict:     #search for matching username to retrieve info
@@ -58,7 +58,7 @@ def login():
     #loginTime : date and time of login in military format
     #center items using columns : [sg.Column([ ], justification='center')]
     #adjust filename if needed for your pc -- Remember to change at production time
-    my_img = sg.Image(filename='SAIL_Project/CS179M_Project/img/SaIL.png', key='-sail_logo-')
+    my_img = sg.Image(filename='CS179M_Project/img/SaIL.png', key='-sail_logo-')
     
     layout =[
                 [sg.Column([[my_img]], justification='center')],
@@ -66,7 +66,7 @@ def login():
                 [sg.Column([[sg.Input(justification='center', key='-usrnm-')]], justification='center')], 
                 [sg.Column([[sg.Button('Login'), sg.Button('Exit')]], justification='center')],
             ]
-    return sg.Window("SAIL ENTERPRISE - LOGIN", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
+    return sg.Window("SAIL ENTERPRISE - Initial Login", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
 
 #---------------SIGN OFF->ON NEW USER METHOD------------------------------------
 def loginNew(): 
@@ -74,7 +74,7 @@ def loginNew():
     #loginTime : date and time of login in military format
     #center items using columns : [sg.Column([ ], justification='center')]
     #adjust filename if needed for your pc -- Remember to change at production time
-    my_img = sg.Image(filename='SAIL_Project/CS179M_Project/img/SaIL.png', key='-sail_logo-')
+    my_img = sg.Image(filename='CS179M_Project/img/SaIL.png', key='-sail_logo-')
     
     layout =[
                 [sg.Column([[sg.Text('Current User: ' + fullName ,font=body_font)]], justification='left')],  
@@ -84,11 +84,11 @@ def loginNew():
                 [sg.Column([[sg.Input(justification='center', key='-usrnm-')]], justification='center')], 
                 [sg.Column([[sg.Button('Login'), sg.Button('Go Back')]], justification='center')],
             ]
-    return sg.Window("SAIL ENTERPRISE - LOGIN", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
+    return sg.Window("SAIL ENTERPRISE - New Login", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
 
 #---------------JOB SELECTION METHOD------------------------------------
 def selectJob(): 
-    my_img = sg.Image(filename='SAIL_Project/CS179M_Project/img/SaIL.png', key='-sail_logo-')
+    my_img = sg.Image(filename='CS179M_Project/img/SaIL.png', key='-sail_logo-')
     layout1 =[
                 [sg.Column([[sg.Text('Current User: ' + fullName ,font=body_font)]], justification='left')],  
                 [sg.Column([[sg.Text('Login Time: ' + str(loginTime), font=body_font)]], justification='left')],  
@@ -110,10 +110,24 @@ def uploadManifest():
                 [sg.Column([[sg.Button('Submit Manifest')]], justification='center')],
                 [sg.Column([[sg.Button('Cancel Upload')]], justification='center')],
             ]
-    return sg.Window("SAIL ENTERPRISE - Select Job", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
+    return sg.Window("SAIL ENTERPRISE - Upload Manifest", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
+
+#---------------INTERACTIVE GRID METHOD------------------------------------
+def gridSelection(): #NOT FINISHED 
+    layout =[
+                [sg.Column([[sg.Text('Current User: ' + fullName ,font=body_font)]], justification='left')],  
+                [sg.Column([[sg.Text('Login Time: ' + str(loginTime), font=body_font)]], justification='left')],  
+                [sg.Column([[sg.Text('Manifest: ' + str(manifest), font=body_font)]], justification='left')],  
+                [sg.Column([[sg.Text('\nSelect Containers to Load/Unload: ', font=heading_font)]], justification='center')],   
+                [sg.Column([[sg.Button(f'{row}, {col}') for col in range(12)] for row in range(8)], justification='center')],
+                [sg.Column([[sg.Button('LOAD NEW CONTAINER')]], justification='center')],
+                [sg.Column([[sg.Button('START PROCESS')]], justification='center')],
+                [sg.Column([[sg.Button('RETURN')]], justification='center')],
+            ]
+    return sg.Window("SAIL ENTERPRISE - Grid View", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
 
 
-window1, selectJobWindow, uploadWindow = login(), None, None    # start off with login window open (window 1)
+window1, selectJobWindow, uploadWindow, gridWindow = login(), None, None, None   # start off with login window open (window 1)
 
 while True:             # Event Loop
     window, event, values = sg.read_all_windows()
@@ -124,6 +138,9 @@ while True:             # Event Loop
             break
         elif window == uploadWindow:       
             uploadWindow = None
+            break
+        elif window == gridWindow:       
+            gridWindow = None
             break
         elif window == window1:     # if closing win 1, exit program
             break
@@ -177,6 +194,8 @@ while True:             # Event Loop
             print('SELECTED MANIFEST : ', manifest)
             if selectedJob == 1:
                 sg.popup("Starting new Loading Job") #Placeholder - forward to load/unload layout
+                gridWindow = gridSelection()
+                uploadManifest().Hide()
             elif selectedJob == 2: 
                 sg.popup("Start new Balancing Job") #Placeholder - forward to balancing layout 
     elif event == "Cancel Upload":
