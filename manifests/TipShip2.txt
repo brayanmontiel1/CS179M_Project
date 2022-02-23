@@ -12,7 +12,7 @@
 [01,12], {00432}, NAN
 [02,01], {00432}, NAN
 [02,02], {00437}, US Army MREs (winter)
-[02,03], {0043b}, US Army MREs (winter)
+[02,03], {00431}, US Army MREs (winter)
 [02,04], {00432}, US Army MREs (winter)
 [02,05], {00432}, US Army MREs (winter)
 [02,06], {00432}, US Army MREs (winter)
@@ -21,12 +21,12 @@
 [02,09], {00432}, US Army MREs (winter)
 [02,10], {00432}, US Army MREs (winter)
 [02,11], {00472}, US Army MREs (winter)
-[02,12], NAN
+[02,12], {00000}, NAN
 [03,01], {00432}, US Army MREs (winter)
 [03,02], {00432}, US Army MREs (winter)
 [03,03], {00432}, US Army MREs (winter)
 [03,04], {00432}, US Army MREs (winter)
-[03,05], {004c2}, US Army MREs (winter)
+[03,05], {00432}, US Army MREs (winter)
 [03,06], {00432}, US Army MREs (winter)
 [03,07], {00472}, US Army MREs (winter)
 [03,08], {00432}, US Army MREs (winter)
