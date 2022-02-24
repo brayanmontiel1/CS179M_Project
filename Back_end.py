@@ -3,7 +3,7 @@ import datetime
 import numpy as np
 
 entryCount = 0 # tie breaker for states with equal priority
-containerNum = 0 # tracks unique containers
+containerNum = 1 # tracks unique containers
 
 file = open(".saved/currentUser.txt", "r")
 user = file.read() # Global variable to store currently logged in user
@@ -26,7 +26,7 @@ class LUstate(object):
 
 # General Program Functions
 def getManifest(): # INCOMPLETE: will get the filename from the upload
-    return "manifests/exampleManifest.txt"
+    return "manifests/exampleManifest2.txt"
 
 def loadManifest(filename): # COMPLETE: loads 2D array with manifest
     # track container numbers
@@ -50,11 +50,13 @@ def loadManifest(filename): # COMPLETE: loads 2D array with manifest
             c.desc = line[18:]
 
         # assign unique num to containers
-        if(c.desc != "UNUSED"):
+        if(c.desc != "UNUSED" and c.desc != "NAN"):
             c.num = containerNum
             containerNum+=1
-        else:
+        elif(c.desc == "NAN"):
             c.num = -1
+        else:
+            c.num = 0
 
         # use position in file to fill in array with the container you just made
         #row = int(line[4:6])
@@ -116,8 +118,14 @@ def LUjob(): # COMPLETE: initalizes state and computes the goal
     movesList(goal)
 
 def retrieveLU(state): # INCOMPLETE: retrieve loads and unloads needed from user
-    state.loads = []
-    state.unloads = []
+    global containerNum
+    c = Container()
+    c.weight = 0
+    c.desc = "load"
+    c.num = containerNum
+    containerNum+=1
+    state.loads = [c]
+    state.unloads = [(0,4)]
 
 def LUsearch(initState): # COMPLETE: A* search for LU jobs
     global entryCount
