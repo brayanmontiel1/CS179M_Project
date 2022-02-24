@@ -31,7 +31,7 @@ def getManifest(): # INCOMPLETE: will get the filename from the upload
 def loadManifest(filename): # COMPLETE: loads 2D array with manifest
     # track container numbers
     global containerNum
-    containerNum = 0
+    containerNum = 1
     # make 2D array (10 row x 12 col)
     manifest = np.empty([10, 12], dtype = Container)
     # open the file
