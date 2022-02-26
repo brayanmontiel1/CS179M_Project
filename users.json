@@ -1,0 +1,32 @@
+[
+    { 
+      "first": "John", 
+      "last": "Keogh", 
+      "workID": 1,
+      "username": "john"
+    },
+    {
+      "first": "Brayan", 
+      "last": "Montiel", 
+      "workID": 2,
+      "username": "brayan" 
+    },
+    {
+      "first": "Alec", 
+      "last": "Asatoorian", 
+      "workID": 3,
+      "username": "alec" 
+    },
+    {
+      "first": "Thomas", 
+      "last": "Henningston", 
+      "workID": 4,
+      "username": "thomas" 
+    },
+    {
+      "first": "Tommy", 
+      "last": "Chhur", 
+      "workID": 5,
+      "username": "tommy" 
+    }
+  ]
