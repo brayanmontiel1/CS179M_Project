@@ -26,7 +26,7 @@ class LUstate(object):
 
 # General Program Functions
 def getManifest(): # INCOMPLETE: will get the filename from the upload
-    return "manifests/exampleManifest2.txt"
+    return "manifests/exampleManifest.txt"
 
 def loadManifest(filename): # COMPLETE: loads 2D array with manifest
     # track container numbers
@@ -38,39 +38,43 @@ def loadManifest(filename): # COMPLETE: loads 2D array with manifest
     file = open(filename, 'r')
     f = file.readlines()
     # for each line in the file
-    for line in f:
-        # get attributes in a container struct
-        c = Container()
-        c.weight = int(line[10:15])
-        #making sure we do not take in new line characters in the description
-        if(line[-1] == '\n'):
-            c.desc = line[18:-1]
-        else:
-            #the last line in the file will not have a new line character
-            c.desc = line[18:]
-
-        # assign unique num to containers
-        if(c.desc != "UNUSED" and c.desc != "NAN"):
-            c.num = containerNum
-            containerNum+=1
-        elif(c.desc == "NAN"):
-            c.num = -1
-        else:
-            c.num = 0
-
-        # use position in file to fill in array with the container you just made
-        #row = int(line[4:6])
-        #col = int(line[1:3])
-        manifest[int(line[1:3]) - 1][int(line[4:6]) - 1] = c
-
-    #populate virtual area with unused container spaces
-    for col in range(8, 10):
-        for row in range(0, 12):
+    try:
+        for line in f:
+            # get attributes in a container struct
             c = Container()
-            c.weight = 0
-            c.desc = "UNUSED"
-            c.num = -1
-            manifest[col][row] = c
+            c.weight = int(line[10:15])
+            #making sure we do not take in new line characters in the description
+            if(line[-1] == '\n'):
+                c.desc = line[18:-1]
+            else:
+                #the last line in the file will not have a new line character
+                c.desc = line[18:]
+
+            # assign unique num to containers
+            if(c.desc != "UNUSED" and c.desc != "NAN"):
+                c.num = containerNum
+                containerNum+=1
+            elif(c.desc == "NAN"):
+                c.num = -1
+            else:
+                c.num = 0
+
+            # use position in file to fill in array with the container you just made
+            #row = int(line[4:6])
+            #col = int(line[1:3])
+            manifest[int(line[1:3]) - 1][int(line[4:6]) - 1] = c
+
+        #populate virtual area with unused container spaces
+        for col in range(8, 10):
+            for row in range(0, 12):
+                c = Container()
+                c.weight = 0
+                c.desc = "UNUSED"
+                c.num = -1
+                manifest[col][row] = c
+
+    except:
+        return np.empty([10, 12], dtype = Container)
 
     # return array
     return manifest
