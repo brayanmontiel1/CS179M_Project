@@ -122,11 +122,13 @@ def gridSelection(): #NOT FINISHED
                 [sg.Column([[sg.Button(f'{row}, {col}') for col in range(12)] for row in range(8)], justification='center')],
                 [sg.Column([[sg.Button('LOAD NEW CONTAINER')]], justification='center')],
                 [sg.Column([[sg.Button('START PROCESS')]], justification='center')],
-                [sg.Column([[sg.Button('RETURN')]], justification='center')],
+                [sg.Column([[sg.Button('BACK TO MENU')]], justification='center')],
             ]
     return sg.Window("SAIL ENTERPRISE - Grid View", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
 
 
+
+###START OF WINDOW SELECTIONS ---------------------------------------------------------
 window1, selectJobWindow, uploadWindow, gridWindow = login(), None, None, None   # start off with login window open (window 1)
 
 while True:             # Event Loop
@@ -194,6 +196,10 @@ while True:             # Event Loop
             print('SELECTED MANIFEST : ', manifest)
             if selectedJob == 1:
                 sg.popup("Starting new Loading Job") #Placeholder - forward to load/unload layout
+                fileM = open(values['-manifest-'])
+                line = fileM.read()      
+                fileM.close()
+                print(line)  
                 gridWindow = gridSelection()
                 uploadManifest().Hide()
             elif selectedJob == 2: 
@@ -202,6 +208,18 @@ while True:             # Event Loop
         print("CANCLED Manifest upload - RETURN to Job Selection")
         selectedJob = 0 #restore job selection
         uploadWindow.Hide()
+        selectJobWindow.UnHide()
+
+    ##GRID WINDOW process
+    elif event == 'LOAD NEW CONTAINER':
+        sg.popup("new cont. placeholder")        
+        print('ADD NEW CONTAINER -- Forward to load new container layout/n')
+    elif event == 'Start New Balancing Job':
+        sg.popup("new cont. placeholder")        
+        print('STARTING ALGORITHM -- Forward to algorithm loading screen/n')
+    elif event == 'BACK TO MENU':     ##REDIRECT to main login
+        print('RETURN TO JOB SELECTION -- Forward to job selection menu')
+        gridWindow.Hide() 
         selectJobWindow.UnHide()
 
 window.close()
