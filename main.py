@@ -107,7 +107,7 @@ def loadManifest(filename): # COMPLETE: loads 2D array with manifest
                 c = Container()
                 c.weight = 0
                 c.desc = "UNUSED"
-                c.num = -1
+                c.num = 0
                 manifest[col][row] = c
 
     except:
@@ -127,7 +127,7 @@ def loginWindow():
                 [sg.Column([[my_img]], justification='center')],
                 [sg.Column([[sg.Text('Enter username: ', font=body_font)]], justification='center')],  
                 [sg.Column([[sg.Input(justification='center', key='-usrnm-')]], justification='center')], 
-                [sg.Column([[sg.Button('Login'), sg.Button('Exit')]], justification='center')],
+                [sg.Column([[sg.Button('Login', button_color='black'), sg.Button('Go Back', button_color='black')]], justification='center')],
             ]
     return sg.Window("SAIL ENTERPRISE - Initial Login", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
 
@@ -138,9 +138,9 @@ def selectJob():
                 [sg.Column([[sg.Text('Current User: ' + currUser ,font=body_font)]], justification='left')],   
                 [sg.Column([[my_img]], justification='center')],
                 [sg.Column([[sg.Text('\n\nSelect an option below to continue: ', font=body_font)]], justification='center')],   
-                [sg.Column([[sg.Button('Start New Load/Unload')]], justification='center')],  
-                [sg.Column([[sg.Button('Start New Balancing Job')]], justification='center')],
-                [sg.Column([[sg.Button('New Login')]], justification='center')],
+                [sg.Column([[sg.Button('Start New Load/Unload', button_color='black')]], justification='center')],  
+                [sg.Column([[sg.Button('Start New Balancing Job', button_color='black')]], justification='center')],
+                [sg.Column([[sg.Button('New Login', button_color='black')]], justification='center')],
             ]
     return sg.Window("SAIL ENTERPRISE - Select Job", layout1, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
 
@@ -149,30 +149,44 @@ def uploadManifest():
     layout =[
                 [sg.Column([[sg.Text('Current User: ' + currUser ,font=body_font)]], justification='left')],    
                 [sg.Column([[sg.Text('\n\n Upload Manifest: ', font=heading_font)]], justification='center')],   
-                [sg.Column([[sg.Text("Choose a file: "), sg.Input(), sg.FileBrowse(key="-manifest-")]], justification='center')],  
-                [sg.Column([[sg.Button('Submit Manifest')]], justification='center')],
-                [sg.Column([[sg.Button('Cancel Upload')]], justification='center')],
+                [sg.Column([[sg.Text("Choose a file: "), sg.Input(), sg.FileBrowse(key="-manifest-", button_color='black')]], justification='center')],  
+                [sg.Column([[sg.Button('Submit Manifest', button_color='black')]], justification='center')],
+                [sg.Column([[sg.Button('Cancel Upload', button_color='black')]], justification='center')],
             ]
     return sg.Window("SAIL ENTERPRISE - Upload Manifest", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
 
 #---------------INTERACTIVE GRID METHOD------------------------------------
-def gridSelection(): #NOT FINISHED 
+def gridSelection(ship): #NOT FINISHED 
     layout =[
                 [sg.Column([[sg.Text('Current User: ' + currUser ,font=body_font)]], justification='left')],  
                 [sg.Column([[sg.Text('Ship: ' + str(shipName), font=body_font)]], justification='left')],  
                 [sg.Column([[sg.Text('\nSelect Containers to Load/Unload: ', font=heading_font)]], justification='center')],   
-                [sg.Column([[sg.Button(f'{row}, {col}') for col in range(1,13)] for row in range(8,0,-1)], justification='center')],
-                [sg.Column([[sg.Button('LOAD NEW CONTAINER')]], justification='center')],
-                [sg.Column([[sg.Button('START')]], justification='center')],
+                [sg.Column([[sg.Button(f'{row},{col}') for col in range(1,13)] for row in range(8,0,-1)], justification='center')],
+                [sg.Column([[sg.Button('LOAD NEW CONTAINER', button_color='black')]], justification='center')],
+                [sg.Column([[sg.Button('START', button_color='black')]], justification='center')],
             ]
-    return sg.Window("SAIL ENTERPRISE - Grid View", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
+    window = sg.Window("SAIL ENTERPRISE - Grid View", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
+    for field in window.element_list(): # loop updates the button colors on grid to match manifest given
+        if (type(field) == type(sg.Button())) and (str(field.Key).find(',') >= 0):
+            s = str(field.Key)
+            ind = s.find(',')
+            row = int(s[0:ind])-1
+            col = int(s[ind+1:])-1
+            if(ship[row][col].num > 0):
+                field.update(button_color = ("red","red"))
+            elif(ship[row][col].num == 0):
+                field.update(button_color = ("white","white"))
+            else:
+                field.update(button_color=("black","black"))
+    return window
+
 
 #--------------------MAIN EVENT LOOP---------------------------------------------------------
 window1, selectJobWindow, uploadWindow, gridWindow = None, selectJob(), None, None   # start off with main window open (fix to be with whatever is saved)
 
 while True:             # Event Loop
     window, event, values = sg.read_all_windows()
-    if event == sg.WIN_CLOSED or event == 'Exit':
+    if event == sg.WIN_CLOSED:
         window.close()
         if window == selectJobWindow:       # if closing selectJobWindow, mark as closed
             selectJobWindow = None
@@ -233,8 +247,8 @@ while True:             # Event Loop
                 shipName = manifest[:-4] # remove ".txt" from manifest to get ship name
                 print('SELECTED MANIFEST : ', manifest)
                 if selectedJob == 1:
-                    gridWindow = gridSelection() # open grid slection if LU job
-                    uploadManifest().Hide()
+                    gridWindow = gridSelection(ship) # open grid slection if LU job
+                    uploadWindow.Hide()
                 elif selectedJob == 2: 
                     sg.popup("Start new Balancing Job") #Placeholder - forward to balancing layout 
 
