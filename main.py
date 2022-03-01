@@ -630,7 +630,6 @@ while True:             # Event Loop
 
     # GRID WINDOW process
     if window == gridWindow:
-        grid2Manifest(ship, 'newmanifest.txt')
         if event == 'LOAD NEW CONTAINER':       
             print('ADD NEW CONTAINER -- Forward to load new container layout/n')
             gridWindow.Hide()
