@@ -455,6 +455,34 @@ def gridSelection(ship):
                 field.update(button_color=("black","black"))
     return window
 
+#---------------GRID 2 MANIFEST METHOD-------------------------------------
+def grid2Manifest(ship, filename):
+
+    # Format ship object into list
+    manifestList = []
+    for i in range(len(ship) - 2):
+        for j in range(len(ship[0])):
+
+            item_num = ''
+            mynum = ship[i][j].num
+            if mynum == 0:
+                item_num = 'UNUSED'
+
+            elif mynum == -1:
+                item_num = 'NAN'
+
+            elif mynum > 0:
+                item_num = ship[i][j].desc
+
+            manifestList.append(([i+1, j+1], (ship[i][j]).weight,item_num))
+
+    # Write each list row to text file
+    textfile = open(filename, "w")
+    for element in manifestList:
+        textfile.write('[{:02d},{:02d}], {{{:05d}}}, {}\n'.format(element[0][0], element[0][1], element[1], element[2]))
+    textfile.close()
+    print('NEW MANIFEST DOWNLOAD READY : {}'.format(filename))
+
 #---------------ADD NEW CONTAINER METHOD------------------------------------
 def addContainer():
     layout =[
@@ -602,6 +630,7 @@ while True:             # Event Loop
 
     # GRID WINDOW process
     if window == gridWindow:
+        grid2Manifest(ship, 'newmanifest.txt')
         if event == 'LOAD NEW CONTAINER':       
             print('ADD NEW CONTAINER -- Forward to load new container layout/n')
             gridWindow.Hide()
