@@ -68,7 +68,7 @@ def login(userName): # Updates global variable 'currUser' with userName, adds lo
     file.write(currUser)
     file.close()
 
-def loadManifest(filename): # COMPLETE: loads 2D array with manifest
+def loadManifest(filename): # loads 2D array with manifest
     # track container numbers
     global containerNum
     containerNum = 1
@@ -118,6 +118,36 @@ def loadManifest(filename): # COMPLETE: loads 2D array with manifest
 
     # return array
     return manifest
+
+def grid2Manifest(ship, filename): # uploads 2D array into manifest format
+
+    # Format ship object into list
+    manifestList = []
+    for i in range(len(ship) - 2):
+        for j in range(len(ship[0])):
+
+            item_num = ''
+            mynum = ship[i][j].num
+            if mynum == 0:
+                item_num = 'UNUSED'
+
+            elif mynum == -1:
+                item_num = 'NAN'
+
+            elif mynum > 0:
+                item_num = ship[i][j].desc
+
+            manifestList.append(([i+1, j+1], (ship[i][j]).weight,item_num))
+
+    # Write each list row to text file
+    textfile = open(filename, "w")
+    for element in manifestList:
+        if element[0][0] == 8 and element[0][1] == 12:
+            textfile.write('[{:02d},{:02d}], {{{:05d}}}, {}'.format(element[0][0], element[0][1], element[1], element[2]))
+        else:
+            textfile.write('[{:02d},{:02d}], {{{:05d}}}, {}\n'.format(element[0][0], element[0][1], element[1], element[2]))
+    textfile.close()
+    print('NEW MANIFEST DOWNLOAD READY : {}'.format(filename))
 
 #---------------LU MAIN FUNCTIONS------------------------------------
 def LUjob(ship,loads,unloads): # initalizes state and computes the goal for LU
@@ -454,34 +484,6 @@ def gridSelection(ship):
             else:
                 field.update(button_color=("black","black"))
     return window
-
-#---------------GRID 2 MANIFEST METHOD-------------------------------------
-def grid2Manifest(ship, filename):
-
-    # Format ship object into list
-    manifestList = []
-    for i in range(len(ship) - 2):
-        for j in range(len(ship[0])):
-
-            item_num = ''
-            mynum = ship[i][j].num
-            if mynum == 0:
-                item_num = 'UNUSED'
-
-            elif mynum == -1:
-                item_num = 'NAN'
-
-            elif mynum > 0:
-                item_num = ship[i][j].desc
-
-            manifestList.append(([i+1, j+1], (ship[i][j]).weight,item_num))
-
-    # Write each list row to text file
-    textfile = open(filename, "w")
-    for element in manifestList:
-        textfile.write('[{:02d},{:02d}], {{{:05d}}}, {}\n'.format(element[0][0], element[0][1], element[1], element[2]))
-    textfile.close()
-    print('NEW MANIFEST DOWNLOAD READY : {}'.format(filename))
 
 #---------------ADD NEW CONTAINER METHOD------------------------------------
 def addContainer():
