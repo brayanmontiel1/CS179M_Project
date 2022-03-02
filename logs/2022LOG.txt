@@ -2,3 +2,60 @@
 02-28-2022: 19:51:07 Manifest CrisDeBurg.txt is opened, there are 2 containers on the ship
 02-28-2022: 20:56:14 Manifest CrisDeBurg.txt is opened, there are 2 containers on the ship
 02-28-2022: 21:04:48 Manifest TipShip2.txt is opened, there are 92 containers on the ship
+03-01-2022: 21:12:28 bm signs out
+03-01-2022: 21:12:28 asdf signs in
+03-01-2022: 21:12:48 Manifest exampleManifest.txt is opened, there are 48 containers on the ship
+03-01-2022: 21:13:31 "asdf" is onloaded.
+03-01-2022: 21:13:33 Finished a Job.
+03-01-2022: 21:14:02 Manifest TipShip2.txt is opened, there are 92 containers on the ship
+03-01-2022: 21:20:25 Manifest CrisDeBurg.txt is opened, there are 2 containers on the ship
+03-01-2022: 21:21:14 "target1" is onloaded.
+03-01-2022: 21:21:44 "Olive Oil, Flann O'Brien" is offloaded.
+03-01-2022: 21:21:53 "Target San Diego 2323 Sports Equiment " is offloaded.
+03-01-2022: 21:21:55 Finished a Job.
+03-01-2022: 21:21:57 "UNUSED" is offloaded.
+03-01-2022: 21:21:58 Finished a Job.
+03-01-2022: 21:22:00 "UNUSED" is offloaded.
+03-01-2022: 21:22:01 Finished a Job.
+03-01-2022: 21:22:01 "UNUSED" is offloaded.
+03-01-2022: 21:22:02 Finished a Job.
+03-01-2022: 21:22:03 "UNUSED" is offloaded.
+03-01-2022: 21:22:04 Finished a Job.
+03-01-2022: 21:22:04 "UNUSED" is offloaded.
+03-01-2022: 21:22:05 Finished a Job.
+03-01-2022: 21:22:06 "UNUSED" is offloaded.
+03-01-2022: 21:22:06 Finished a Job.
+03-01-2022: 21:22:07 "UNUSED" is offloaded.
+03-01-2022: 21:22:08 Finished a Job.
+03-01-2022: 21:22:08 "UNUSED" is offloaded.
+03-01-2022: 21:22:09 Finished a Job.
+03-01-2022: 21:22:10 "UNUSED" is offloaded.
+03-01-2022: 21:22:12 Finished a Job.
+03-01-2022: 21:22:15 "UNUSED" is offloaded.
+03-01-2022: 21:22:16 Finished a Job.
+03-01-2022: 21:24:47 Manifest TipShip2.txt is opened, there are 92 containers on the ship
+03-01-2022: 21:27:42 Manifest TipShip2.txt is opened, there are 92 containers on the ship
+03-01-2022: 21:27:55 Manifest exampleManifest.txt is opened, there are 48 containers on the ship
+03-01-2022: 21:29:21 "example" is offloaded.
+03-01-2022: 21:29:22 "example" is offloaded.
+03-01-2022: 21:29:24 "example" is offloaded.
+03-01-2022: 21:29:25 "example" is offloaded.
+03-01-2022: 21:29:25 "example" is offloaded.
+03-01-2022: 21:29:26 "example" is offloaded.
+03-01-2022: 21:29:34 "example" is offloaded.
+03-01-2022: 21:29:36 "example" is offloaded.
+03-01-2022: 21:29:41 Finished a Job.
+03-01-2022: 21:29:42 "UNUSED" is offloaded.
+03-01-2022: 21:29:43 Finished a Job.
+03-01-2022: 21:30:58 Manifest TipShip2.txt is opened, there are 92 containers on the ship
+03-01-2022: 21:47:20 Manifest exampleManifest2.txt is opened, there are 8 containers on the ship
+03-01-2022: 21:47:54 Manifest exampleManifest2.txt is opened, there are 8 containers on the ship
+03-01-2022: 21:48:33 Manifest exampleManifest2.txt is opened, there are 8 containers on the ship
+03-01-2022: 21:52:36 Manifest exampleManifest2.txt is opened, there are 8 containers on the ship
+03-01-2022: 21:53:12 Manifest exampleManifest2.txt is opened, there are 8 containers on the ship
+03-01-2022: 21:53:57 Manifest exampleManifest2.txt is opened, there are 8 containers on the ship
+03-01-2022: 21:54:38 Manifest exampleManifest2.txt is opened, there are 8 containers on the ship
+03-01-2022: 21:58:51 Manifest exampleManifest2.txt is opened, there are 8 containers on the ship
+03-01-2022: 22:00:21 Manifest TipShip2.txt is opened, there are 92 containers on the ship
+03-01-2022: 22:41:50 Manifest TipShip2.txt is opened, there are 92 containers on the ship
+03-01-2022: 22:45:31 Manifest TipShip2.txt is opened, there are 92 containers on the ship
