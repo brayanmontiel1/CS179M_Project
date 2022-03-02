@@ -22,11 +22,12 @@ body_font = ("Arial, 14")
 global entryCount # tie breaker for states with equal priority
 global containerNum # tracks unique containers
 global loads, unloads # tracks loads unloads before job starts
-
+global loadedMsg, manifestCont #tracks what has been selected / deselected and manifest content
 global currUser # Global variable to store currently logged in user
-file = open(".saved/currentUser.txt", "r") # saved file holds currently logged in user (for power failure)
+file = open("CS179M_Project/.saved/currentUser.txt", "r") # saved file holds currently logged in user (for power failure)
 currUser = file.read()
-
+loadedMsg = ''
+manifestCont = ''
 #---------------CLASSES------------------------------------
 class Container(object):
     # container.weight
@@ -51,7 +52,7 @@ def addLog(logText): # Appends whatever is in logText to appropriate text file, 
     monthDay = date.strftime("%m-%d")
     year = date.strftime("%Y")
     text = monthDay + "-" + year + ": " + time + " " + logText + "\n"
-    logFile = "logs/" + year + "LOG.txt"
+    logFile = "CS179M_Project/logs/" + year + "LOG.txt"
     file = open(logFile, "a")
     file.write(text)
     file.close()
@@ -64,7 +65,7 @@ def login(userName): # Updates global variable 'currUser' with userName, adds lo
         addLog(currUser + " signs out")
     addLog(userName + " signs in")
     currUser = userName
-    file = open(".saved/currentUser.txt", "w")
+    file = open("CS179M_Project/.saved/currentUser.txt", "w")
     file.write(currUser)
     file.close()
 
@@ -426,26 +427,26 @@ def loginWindow():
     #currUser : user that is logged in 
     #center items using columns : [sg.Column([ ], justification='center')]
     #adjust filename if needed for your pc -- Remember to change at production time
-    my_img = sg.Image(filename='img/SaIL.png', key='-sail_logo-')
+    my_img = sg.Image(filename='CS179M_Project/img/SaIL.png', key='-sail_logo-')
     
     layout =[
                 [sg.Column([[my_img]], justification='center')],
                 [sg.Column([[sg.Text('Enter username: ', font=body_font)]], justification='center')],  
                 [sg.Column([[sg.Input(justification='center', key='-usrnm-')]], justification='center')], 
-                [sg.Column([[sg.Button('Login', button_color='black'), sg.Button('Cancel', button_color='black')]], justification='center')],
+                [sg.Column([[sg.Button('Login'), sg.Button('Cancel')]], justification='center')],
             ]
     return sg.Window("SAIL ENTERPRISE - Login", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
 
 #---------------JOB SELECTION METHOD------------------------------------
 def selectJob(): 
-    my_img = sg.Image(filename='img/SaIL.png', key='-sail_logo-')
+    my_img = sg.Image(filename='CS179M_Project/img/SaIL.png', key='-sail_logo-')
     layout1 =[
                 [sg.Column([[sg.Text('Current User: ' + currUser ,font=body_font)]], justification='left')],   
                 [sg.Column([[my_img]], justification='center')],
                 [sg.Column([[sg.Text('\n\nSelect an option below to continue: ', font=body_font)]], justification='center')],   
-                [sg.Column([[sg.Button('Start New Load/Unload', button_color='black')]], justification='center')],  
-                [sg.Column([[sg.Button('Start New Balancing Job', button_color='black')]], justification='center')],
-                [sg.Column([[sg.Button('Login', button_color='black')]], justification='center')],
+                [sg.Column([[sg.Button('Start New Load/Unload')]], justification='center')],  
+                [sg.Column([[sg.Button('Start New Balancing Job')]], justification='center')],
+                [sg.Column([[sg.Button('Login')]], justification='center')],
             ]
     return sg.Window("SAIL ENTERPRISE - Select Job", layout1, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
 
@@ -454,9 +455,11 @@ def uploadManifest():
     layout =[
                 [sg.Column([[sg.Text('Current User: ' + currUser ,font=body_font)]], justification='left')],    
                 [sg.Column([[sg.Text('\n\n Upload Manifest: ', font=heading_font)]], justification='center')],   
-                [sg.Column([[sg.Text("Choose a file: "), sg.Input(), sg.FileBrowse(key="-manifest-", button_color='black')]], justification='center')],  
-                [sg.Column([[sg.Button('Submit Manifest', button_color='black')]], justification='center')],
-                [sg.Column([[sg.Button('Cancel', button_color='black')]], justification='center')],
+                [sg.Column([[sg.Text("Choose a file: "), sg.Input(), sg.FileBrowse(key="-manifest-")]], justification='center')],  
+                [sg.Column([[sg.Button('Submit Manifest')]], justification='center')],
+                [sg.Column([[sg.Button('View Manifest')]], justification='center')],
+                [sg.Column([[sg.Button('Cancel')]], justification='center')],
+                [sg.Column([[sg.Text('', font=body_font, key = '_text2_', visible = True)]], justification='center')],
             ]
     return sg.Window("SAIL ENTERPRISE - Upload Manifest", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
 
@@ -467,8 +470,9 @@ def gridSelection(ship):
                 [sg.Column([[sg.Text('Ship: ' + str(shipName), font=body_font)]], justification='left')],  
                 [sg.Column([[sg.Text('\nSelect Containers to Load/Unload: ', font=heading_font)]], justification='center')],   
                 [sg.Column([[sg.Button(f'{row},{col}') for col in range(1,13)] for row in range(8,0,-1)], justification='center')],
-                [sg.Column([[sg.Button('LOAD NEW CONTAINER', button_color='black')]], justification='center')],
-                [sg.Column([[sg.Button('START', button_color='black')]], justification='center')],
+                [sg.Column([[sg.Button('LOAD NEW CONTAINER')]], justification='center')],
+                [sg.Column([[sg.Button('START')]], justification='center')],
+                [sg.Column([[sg.Text('\n' + loadedMsg, font=body_font, key = '_text1_', visible = True)]], justification='center')],   
             ]
     window = sg.Window("SAIL ENTERPRISE - Load/Unload Selection", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
     for field in window.element_list(): # loop updates the button colors on grid to match manifest given
@@ -494,7 +498,7 @@ def addContainer():
                 [sg.Column([[sg.Input(justification='center', key='-dsc-')]], justification='center')],
                 [sg.Column([[sg.Text('Enter the container weight (0-99999 kilograms)',font=body_font)]], justification='Center')],
                 [sg.Column([[sg.Input(justification='center', key='-wgt-')]], justification='center')], 
-                [sg.Column([[sg.Button('Add Container', button_color='black'), sg.Button('Cancel', button_color='black')]], justification='center')],
+                [sg.Column([[sg.Button('Add Container'), sg.Button('Cancel')]], justification='center')],
                 [sg.Column([[sg.Text('WARNING: You will not be able to change a container once it is added to the loading list',font=body_font)]], justification='Center')],
             ]
     return sg.Window("SAIL ENTERPRISE - Add New Container", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
@@ -522,7 +526,7 @@ def LUmovement(ship,r1,c1,r2,c2):
                 [sg.Column([[sg.Text('Description: ' + c.desc, font=body_font)]], justification='center')],
                 [sg.Column([[sg.Text('Weight: ' + str(c.weight), font=body_font)]], justification='center')],   
                 [sg.Column([[sg.Button(f'{str(row).zfill(2)},{str(col).zfill(2)}') for col in range(1,13)] for row in range(11,0,-1)], justification='center')],
-                [sg.Column([[sg.Button('Add Log', button_color='black'), sg.Button('NEXT', button_color='black'), sg.Button('Login', button_color='black')]], justification='center')],
+                [sg.Column([[sg.Button('Add Log'), sg.Button('NEXT'), sg.Button('Login')]], justification='center')],
             ]
     window = sg.Window("SAIL ENTERPRISE - Move", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
     for field in window.element_list(): # loop updates the button colors on grid to match manifest given
@@ -606,16 +610,29 @@ while True:             # Event Loop
 
     # UPLOAD manifest process
     if window == uploadWindow:
-        if event == "Submit Manifest": # submit manifest button on upload window
+        if event == "View Manifest": # view manifest contentes before submitting
+            if('' == values['-manifest-']): #see if file is selected
+                sg.popup("No file selected. Select file to view.",title="File Read Error") # Error message if mainfest file invalid  
+            else:
+                print("VIEWING manifest contents")
+                fileM = open(values['-manifest-'])
+                line = fileM.read()      
+                fileM.close()
+                manifestCont = '\nManifest Contents: \n' + line
+                uploadWindow['_text2_'].update(manifestCont)
+        elif event == "Submit Manifest": # submit manifest button on upload window
             manifest = values['-manifest-'] # get input
+            #outputting manifest to window
+            #updating window to print manifest
             ship = loadManifest(manifest) # load manifest into array
             if(ship[0][0] == None):
-                sg.popup("Invalid manifest file, try again.",title="File Read Error",button_color="black") # Error message if mainfest file invalid            
+                sg.popup("Invalid manifest file, try again.",title="File Read Error") # Error message if mainfest file invalid            
             else:
                 manifest = os.path.basename(manifest) # get manifest file name
                 addLog("Manifest " + manifest + " is opened, there are " + str(containerNum-1) + " containers on the ship") # push log                
                 shipName = manifest[:-4] # remove ".txt" from manifest to get ship name
                 print('SELECTED MANIFEST : ', manifest)
+                manifestCont = ''
                 if selectedJob == 1:
                     loads = [] # reset loads
                     unloads = [] # reset unloads
@@ -626,6 +643,7 @@ while True:             # Event Loop
 
         elif event == "Cancel": # cancel upload button on upload window
             print("CANCLED Manifest upload - RETURN to Job Selection")
+            manifestCont = ''
             selectedJob = 0 # restore job selection
             selectJobWindow.UnHide()
             uploadWindow.Hide()            
@@ -647,19 +665,23 @@ while True:             # Event Loop
                         if (row,col) not in unloads:
                             unloads.append((row,col)) # add to loads if not already selected
                             field.update(button_color=("white","green"))
-                            msg= "Selected container \"" + ship[row][col].desc + "\" Click button again to de-select it."
-                            sg.popup(msg,title="Confirm Selection",button_color="black") # output confirm selection
+                            loadedMsg= "Selected container \"" + ship[row][col].desc + "\" Click button again to de-select it."
+                            gridWindow['_text1_'].update("\nAction: " + loadedMsg)
+                            #sg.popup(msg,title="Confirm Selection") # output confirm selection
                         else:
                             unloads.remove((row,col)) # remove from loads if button was already selected
                             field.update(button_color=("white","grey"))
+                            loadedMsg= "De-select container \"" + ship[row][col].desc + "\" Click button again to select it."
+                            gridWindow['_text1_'].update("\nAction: " + loadedMsg)
                         break
 
         elif event == 'START': # NOT FINISHED
+            loadedMsg = ''
             if not loads and not unloads:
                 # Go to finish screen, no algorithm needs to be run
                 pass
             else:
-                sg.popup("The algorithm will now run after you hit OK. This may take some time.",title="Starting Algorithm",button_color="black")
+                sg.popup("The algorithm will now run after you hit OK. This may take some time.",title="Starting Algorithm")
                 goal = LUjob(ship,loads,unloads) # run job
                 estimatedTime = goal.g # get estimated time
                 moves = goal.moves # get move list
@@ -675,7 +697,7 @@ while True:             # Event Loop
             description = str(values['-dsc-'])
             weight = int(values['-wgt-'])
             if(len(description) > 256) or (weight < 0) or (weight > 99999): # check validity of inputs
-                sg.popup("Invalid weight or description length",title="Input Error",button_color="black")
+                sg.popup("Invalid weight or description length",title="Input Error")
             else:
                 c = Container() # create new container
                 c.weight = weight
@@ -683,7 +705,8 @@ while True:             # Event Loop
                 c.num = containerNum
                 containerNum+=1
                 loads.append(c) # add to loads
-                sg.popup("Successfully added container to load list.",title="Success",button_color="black")
+                sg.popup("Successfully added container to load list.",title="Success")
+                print("ADDED new container to load list: ", description, " weight: ", weight)
                 gridWindow.UnHide()
                 addWindow.Hide()
 
@@ -714,8 +737,8 @@ while True:             # Event Loop
                     ship[r1][c1] = ship[r2][c2]
                     ship[r2][c2] = c
             if currMove == len(moves): # last move was completed, so we are done and can download new manifest
-                sg.popup("cool")
-                addLog("Finished a Job.")
+                sg.popup("PLACEHOLDER for finished window")
+                addLog("Finished a job for " + shipName)
             else:
                 r1,c1,r2,c2 = retrieveInds(moves,currMove)
                 currMove+=1
