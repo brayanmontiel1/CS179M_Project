@@ -402,7 +402,7 @@ def loginWindow():
                 [sg.Column([[my_img]], justification='center')],
                 [sg.Column([[sg.Text('Enter username: ', font=body_font)]], justification='center')],  
                 [sg.Column([[sg.Input(justification='center', key='-usrnm-')]], justification='center')], 
-                [sg.Column([[sg.Button('Login', button_color='black'), sg.Button('Cancel', button_color='black')]], justification='center')],
+                [sg.Column([[sg.Button('Login'), sg.Button('Cancel')]], justification='center')],
             ]
     return sg.Window("SAIL ENTERPRISE - Login", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
 
@@ -413,9 +413,9 @@ def selectJob():
                 [sg.Column([[sg.Text('Current User: ' + currUser ,font=body_font)]], justification='left')],   
                 [sg.Column([[my_img]], justification='center')],
                 [sg.Column([[sg.Text('\n\nSelect an option below to continue: ', font=body_font)]], justification='center')],   
-                [sg.Column([[sg.Button('Start New Load/Unload', button_color='black')]], justification='center')],  
-                [sg.Column([[sg.Button('Start New Balancing Job', button_color='black')]], justification='center')],
-                [sg.Column([[sg.Button('Login', button_color='black')]], justification='center')],
+                [sg.Column([[sg.Button('Start New Load/Unload')]], justification='center')],  
+                [sg.Column([[sg.Button('Start New Balancing Job')]], justification='center')],
+                [sg.Column([[sg.Button('Login')]], justification='center')],
             ]
     return sg.Window("SAIL ENTERPRISE - Select Job", layout1, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
 
@@ -424,9 +424,9 @@ def uploadManifest():
     layout =[
                 [sg.Column([[sg.Text('Current User: ' + currUser ,font=body_font)]], justification='left')],    
                 [sg.Column([[sg.Text('\n\n Upload Manifest: ', font=heading_font)]], justification='center')],   
-                [sg.Column([[sg.Text("Choose a file: "), sg.Input(), sg.FileBrowse(key="-manifest-", button_color='black')]], justification='center')],  
-                [sg.Column([[sg.Button('Submit Manifest', button_color='black')]], justification='center')],
-                [sg.Column([[sg.Button('Cancel', button_color='black')]], justification='center')],
+                [sg.Column([[sg.Text("Choose a file: "), sg.Input(), sg.FileBrowse(key="-manifest-")]], justification='center')],  
+                [sg.Column([[sg.Button('Submit Manifest')]], justification='center')],
+                [sg.Column([[sg.Button('Cancel')]], justification='center')],
             ]
     return sg.Window("SAIL ENTERPRISE - Upload Manifest", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
 
@@ -437,8 +437,8 @@ def gridSelection(ship):
                 [sg.Column([[sg.Text('Ship: ' + str(shipName), font=body_font)]], justification='left')],  
                 [sg.Column([[sg.Text('\nSelect Containers to Load/Unload: ', font=heading_font)]], justification='center')],   
                 [sg.Column([[sg.Button(f'{row},{col}') for col in range(1,13)] for row in range(8,0,-1)], justification='center')],
-                [sg.Column([[sg.Button('LOAD NEW CONTAINER', button_color='black')]], justification='center')],
-                [sg.Column([[sg.Button('START', button_color='black')]], justification='center')],
+                [sg.Column([[sg.Button('LOAD NEW CONTAINER')]], justification='center')],
+                [sg.Column([[sg.Button('START')]], justification='center')],
             ]
     window = sg.Window("SAIL ENTERPRISE - Load/Unload Selection", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
     for field in window.element_list(): # loop updates the button colors on grid to match manifest given
@@ -492,7 +492,7 @@ def LUmovement(ship,r1,c1,r2,c2):
                 [sg.Column([[sg.Text('Description: ' + c.desc, font=body_font)]], justification='center')],
                 [sg.Column([[sg.Text('Weight: ' + str(c.weight), font=body_font)]], justification='center')],   
                 [sg.Column([[sg.Button(f'{str(row).zfill(2)},{str(col).zfill(2)}') for col in range(1,13)] for row in range(11,0,-1)], justification='center')],
-                [sg.Column([[sg.Button('Add Log', button_color='black'), sg.Button('NEXT', button_color='black'), sg.Button('Login', button_color='black')]], justification='center')],
+                [sg.Column([[sg.Button('Add Log'), sg.Button('NEXT'), sg.Button('Login', button_color='black')]], justification='center')],
             ]
     window = sg.Window("SAIL ENTERPRISE - Move", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
     for field in window.element_list(): # loop updates the button colors on grid to match manifest given

@@ -1,0 +1,4 @@
+02-28-2022: 19:08:56 bm signs in
+02-28-2022: 19:51:07 Manifest CrisDeBurg.txt is opened, there are 2 containers on the ship
+02-28-2022: 20:56:14 Manifest CrisDeBurg.txt is opened, there are 2 containers on the ship
+02-28-2022: 21:04:48 Manifest TipShip2.txt is opened, there are 92 containers on the ship
