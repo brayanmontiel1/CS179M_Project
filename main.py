@@ -472,21 +472,6 @@ def uploadManifest():
             ]
     return sg.Window("SAIL ENTERPRISE - Upload Manifest", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
 
-#--------------DOWNLOAD MANIFEST METHOD------------------------------------
-def downloadManifest():
-    # get current date & time
-
-    downloadUser = currUser if len(currUser) >= 1 else 'unknown'
-
-    layout = [[
-        sg.Text("File Name: "), 
-        sg.Input(default_text=(os.path.join(os.getcwd(), 'CS179M_Project' ,"manifest_{}_{}.txt".format(dt_string, downloadUser))),key="-download_pth-"), 
-        sg.FileSaveAs("Choose Location...",key="-manifest_d-"), 
-        sg.Button('Save',key="Save"), 
-        sg.Button('Cancel', key="Cancel")
-    ]]
-    return sg.Window('Download Manifest', layout, size=(600, 50), resizable=True, finalize=True)
-
 #---------------INTERACTIVE GRID METHOD------------------------------------
 def gridSelection(ship):
     layout =[
@@ -575,7 +560,7 @@ def LUmovement(ship,r1,c1,r2,c2):
                         field.update(button_color=("black","black"))
     return window
 #--------------------MAIN EVENT LOOP---------------------------------------------------------
-window1, selectJobWindow, uploadWindow, gridWindow, addWindow, LUmoveWindow, downloadWindow = None, selectJob(), None, None, None, None, None   # start off with main window open (fix to be with whatever is saved)
+window1, selectJobWindow, uploadWindow, gridWindow, addWindow, LUmoveWindow = None, selectJob(), None, None, None, None   # start off with main window open (fix to be with whatever is saved)
 
 while True:             # Event Loop
     window, event, values = sg.read_all_windows()
@@ -595,9 +580,6 @@ while True:             # Event Loop
             break
         elif window == LUmoveWindow:
             addWindow = None
-            break
-        elif window == downloadWindow:
-            downloadWindow = None
             break
         elif window == window1:     # if closing win 1, exit program
             break
@@ -764,10 +746,12 @@ while True:             # Event Loop
                     ship[r1][c1] = ship[r2][c2]
                     ship[r2][c2] = c
             if currMove == len(moves): # last move was completed, so we are done and can download new manifest
-                # sg.popup("PLACEHOLDER for finished window")
-                # addLog("Finished a job for " + shipName)
-                downloadWindow = downloadManifest()
-                # LUmoveWindow.Hide()
+                fileName = os.path.join(os.path.join(os.environ['USERPROFILE']), 'Desktop', '{}OUTBOUND.txt'.format(shipName))
+                grid2Manifest(ship,fileName)
+                sg.popup("Job Complete! The updated manifest has been downloaded to the desktop as " + shipName + "OUTBOUND.txt. Remember to email it to the captain!",title="Success")
+                addLog("Finished a Cycle. Manifest " + shipName + "OUTBOUND.txt was written to desktop, and a reminder pop-up to operator to send file was displayed.")
+                LUmoveWindow.Hide()
+                selectJobWindow = selectJob() # REDIRECT to job selection window
             else:
                 r1,c1,r2,c2 = retrieveInds(moves,currMove)
                 currMove+=1
@@ -775,19 +759,5 @@ while True:             # Event Loop
                 LUmoveWindow = LUmovement(ship,r1,c1,r2,c2) # else, generate new window based on new ship and next move
         elif event == "Login":
             pass
-
-    if window == downloadWindow:
-
-        if event == 'Cancel': # Cancel Button on add window
-            downloadWindow.Hide()
-
-
-        elif event == 'Save':
-            download_path = values["-download_pth-"]
-            addLog("SAVING MANIFEST : {}".format(download_path))
-            grid2Manifest(ship, download_path)
-            downloadWindow.Hide()
-
-
 
 window.close()
