@@ -29,8 +29,8 @@ global containerNum # tracks unique containers
 global loads, unloads # tracks loads unloads before job starts
 global loadedMsg, manifestCont #tracks what has been selected / deselected and manifest content
 global currUser # Global variable to store currently logged in user
-file = open("CS179M_Project/.saved/currentUser.txt", "r") # saved file holds currently logged in user (for power failure)
-#file = open(".saved/currentUser.txt", "r") # THOMAS PATH
+#file = open("CS179M_Project/.saved/currentUser.txt", "r") # saved file holds currently logged in user (for power failure)
+file = open((os.path.join(os.path.dirname(os.path.abspath(__file__)), '.saved', 'currentUser.txt')),'r')
 currUser = file.read()
 loadedMsg = ''
 manifestCont = ''
@@ -58,9 +58,8 @@ def addLog(logText): # Appends whatever is in logText to appropriate text file, 
     monthDay = date.strftime("%m-%d")
     year = date.strftime("%Y")
     text = monthDay + "-" + year + ": " + time + " " + logText + "\n"
-    logFile = "CS179M_Project/logs/" + year + "LOG.txt"
-    #logFile = "logs/" + year + "LOG.txt" # THOMAS PATH
-    file = open(logFile, "a")
+    #logFile = "CS179M_Project/logs/" + year + "LOG.txt"
+    file = open((os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs', '{}LOG.txt'.format(year))),'a')
     file.write(text)
     file.close()
 
@@ -72,8 +71,8 @@ def login(userName): # Updates global variable 'currUser' with userName, adds lo
         addLog(currUser + " signs out")
     addLog(userName + " signs in")
     currUser = userName
-    file = open("CS179M_Project/.saved/currentUser.txt", "w")
-    #file = open(".saved/currentUser.txt", "w") # THOMAS PATH
+    #file = open("CS179M_Project/.saved/currentUser.txt", "w")
+    file = open((os.path.join(os.path.dirname(os.path.abspath(__file__)), '.saved', 'currentUser.txt')),'w')
     file.write(currUser)
     file.close()
 
@@ -435,8 +434,8 @@ def loginWindow():
     #currUser : user that is logged in 
     #center items using columns : [sg.Column([ ], justification='center')]
     #adjust filename if needed for your pc -- Remember to change at production time
-    my_img = sg.Image(filename='CS179M_Project/img/SaIL.png', key='-sail_logo-')
-    #my_img = sg.Image(filename='img/SaIL.png', key='-sail_logo-') # THOMAS PATH
+    #my_img = sg.Image(filename='CS179M_Project/img/SaIL.png', key='-sail_logo-')
+    my_img = sg.Image(filename=(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'img', 'SaIL.png')), key='-sail_logo-')
     
     layout =[
                 [sg.Column([[my_img]], justification='center')],
@@ -448,8 +447,8 @@ def loginWindow():
 
 #---------------JOB SELECTION METHOD------------------------------------
 def selectJob(): 
-    my_img = sg.Image(filename='CS179M_Project/img/SaIL.png', key='-sail_logo-')
-    #my_img = sg.Image(filename='img/SaIL.png', key='-sail_logo-') # THOMAS PATH
+    #my_img = sg.Image(filename='CS179M_Project/img/SaIL.png', key='-sail_logo-')
+    my_img = sg.Image(filename=(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'img', 'SaIL.png')), key='-sail_logo-')
     layout1 =[
                 [sg.Column([[sg.Text('Current User: ' + currUser ,font=body_font)]], justification='left')],   
                 [sg.Column([[my_img]], justification='center')],
