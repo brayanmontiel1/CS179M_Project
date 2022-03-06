@@ -12,6 +12,7 @@ import heapq
 import io, sys
 import numpy as np
 from numpy import empty
+import pickle
 
 sg.theme('DefaultNoMoreNagging') 
 
@@ -24,11 +25,17 @@ global containerNum # tracks unique containers
 global loads, unloads # tracks loads unloads before job starts
 global loadedMsg, manifestCont #tracks what has been selected / deselected and manifest content
 global currUser # Global variable to store currently logged in user
-#file = open("CS179M_Project/.saved/currentUser.txt", "r") # saved file holds currently logged in user (for power failure)
-file = open((os.path.join(os.path.dirname(os.path.abspath(__file__)), '.saved', 'currentUser.txt')),'r')
-currUser = file.read()
+global selectedJob
+
 loadedMsg = ''
 manifestCont = ''
+jobOngoing = False
+animationList = []
+animationInd = -1
+animationLen = 0
+estimatedTimeTotal = 0
+estimatedTimeTotal = 0
+
 #---------------CLASSES------------------------------------
 class Container(object):
     # container.weight
@@ -152,16 +159,41 @@ def grid2Manifest(ship, filename): # uploads 2D array into manifest format
     textfile.close()
     print('NEW MANIFEST DOWNLOAD READY : {}'.format(filename))
 
+def backupLoads(loads, filename): # backup the containers in load to the saved file
+    file = open(filename,'w')
+    for element in loads:
+        file.write('{},{}\n'.format(element.weight, element.desc))
+    file.close()
+
+def retrieveBackupLoads(filename): # retrieve containers in loads back into array
+    global containerNum
+    file = open(filename,'r')
+    f = file.readlines()
+    l = []
+    for line in f:
+        c = Container()
+        c.num = containerNum
+        containerNum+=1
+        ind = line.find(',')
+        c.weight = int(line[0:ind])
+        if(line[-1 == '\n']): # dont record endline in description
+            line = line[:-1]
+        c.desc = str(line[ind+1:])
+        l.append(c)
+    file.close()
+    return l
+
 #---------------LU MAIN FUNCTIONS------------------------------------
 def LUjob(ship,loads,unloads): # initalizes state and computes the goal for LU
     initState = LUstate()
     initState.ship = ship
     initState.loads = loads
     initState.unloads = unloads
-    initState.cranePos = (-1,-1) # crane starts on dock by truck
+    initState.cranePos = (-1,-1) # crane starts at the dock
     LUheuristic(initState)
     initState.g = 0
     initState.moves = []
+    initState.times = []
     return LUsearch(initState)
 
 def LUsearch(initState): # A* search for LU jobs
@@ -199,16 +231,19 @@ def LUexpand(state, q): # expands given state for LU job
             continue
         if((i,j) in state.unloads): # container is an unload
             copy = LUstateCopy(state)
+            cost = 0
             copy.unloads.remove((i,j)) # remove container from unloads
             if(copy.cranePos == (-1,-1)): # check if crane is by truck
-                copy.g += (abs(i-8) + abs(j-0) + 2)
+                cost += (abs(i-8) + abs(j-0) + 2)
             else: # move crane to container position
-                copy.g += manhattenDist(copy.cranePos[0],copy.cranePos[1],i,j,tops)
-            copy.g += (abs(i-8) + abs(j-0) + 2) # add distance to unload container to g
+                cost += manhattenDist(copy.cranePos[0],copy.cranePos[1],i,j,tops)
+            cost += (abs(i-8) + abs(j-0) + 2) # add distance to unload container to cost
+            copy.g += cost
+            copy.times.append(cost)
             copy.cranePos = (-1,-1) # leave cranePos at the truck
             copy.ship[i][j].weight = 0 # move container
             copy.ship[i][j].desc = "UNUSED"
-            copy.ship[i][j].num = -1
+            copy.ship[i][j].num = 0
             copy.moves.append((i,j,"Truck")) # track move
             LUheuristic(copy) # calculate new heuristic
             heapq.heappush(q, ((copy.g + copy.h), entryCount, copy)) # push copy to queue
@@ -219,18 +254,21 @@ def LUexpand(state, q): # expands given state for LU job
                     r = tops[c]+1 # get row location of move (1 above the top)
                     if((r < 10) and (state.ship[i][j].desc != "NAN")): # Check that the col is not the max col height or top container is NAN
                         copy = LUstateCopy(state)
+                        cost = 0
                         if(copy.cranePos == (-1,-1)): # check if crane is by truck
-                            copy.g += (abs(i-8) + abs(j-0) + 2)
+                            cost += (abs(i-8) + abs(j-0) + 2)
                         else: # move crane to container position
-                            copy.g += manhattenDist(copy.cranePos[0],copy.cranePos[1],i,j,tops)
-                        copy.g += manhattenDist(i,j,r,c,tops) # add cost of move to g
+                            cost += manhattenDist(copy.cranePos[0],copy.cranePos[1],i,j,tops)
+                        cost += manhattenDist(i,j,r,c,tops) # add cost of move to cost
+                        copy.g += cost
+                        copy.times.append(cost)
                         copy.cranePos = (r,c) # leave crane at dropoff position
                         copy.ship[r][c].weight = copy.ship[i][j].weight # move container
                         copy.ship[r][c].desc = copy.ship[i][j].desc
                         copy.ship[r][c].num = copy.ship[i][j].num
                         copy.ship[i][j].weight = 0
                         copy.ship[i][j].desc = "UNUSED"
-                        copy.ship[i][j].num = -1
+                        copy.ship[i][j].num = 0
                         copy.moves.append((i,j,r,c))
                         LUheuristic(copy) # calculate new heuristic
                         heapq.heappush(q, ((copy.g + copy.h), entryCount, copy)) # push copy to queue
@@ -240,9 +278,12 @@ def LUexpand(state, q): # expands given state for LU job
             r = tops[c]+1 # get placement location (1 above top)
             if(r < 10): # Check that the col is not the max col height
                 copy = LUstateCopy(state)
+                cost = 0
                 if(copy.cranePos != (-1,-1)): # check if crane is not by truck
-                    copy.g += (abs(copy.cranePos[0]-8) + abs(copy.cranePos[1]-0) + 2) # move crane to truck position
-                copy.g += (abs(r-8) + abs(c-0) + 2) # add cost of load to g
+                    cost += (abs(copy.cranePos[0]-8) + abs(copy.cranePos[1]-0) + 2) # move crane to truck position
+                cost += (abs(r-8) + abs(c-0) + 2) # add cost of load to cost
+                copy.g += cost
+                copy.times.append(cost)
                 copy.cranePos = (r,c) # leave crane at dropoff position
                 copy.ship[r][c].weight = copy.loads[-1].weight # move container
                 copy.ship[r][c].desc = copy.loads[-1].desc
@@ -256,11 +297,11 @@ def LUexpand(state, q): # expands given state for LU job
 def LUheuristic(state): # COMPLETE: find h(n) of a given LUstate, store in state parameter automatically
     tops = findTops(state)
     ship = state.ship
-    tempPos = state.cranePos
     h = 0
     for j in range(12): # for each col
         for i in range(tops[j]+1): # for each row with filled containers
             if((i,j) in state.unloads): # check if container needs to be unloaded
+                tempPos=(j,tops[j])
                 for k in range(tops[j],i-1,-1): # for the rest of the containers from top to found unload
                     if(tempPos == (-1,-1)):
                         h+=(abs(k-8) + abs(j-0) + 2) # move crane from truck to container
@@ -340,6 +381,7 @@ def LUstateCopy(state): # Copies an LU state
     
     copy.unloads = state.unloads.copy() # unload array is tuples, so this works
     copy.moves = state.moves.copy() # moves array is tuples, so this works
+    copy.times = state.times.copy()
     copy.cranePos = state.cranePos
 
     return copy
@@ -424,6 +466,76 @@ def retrieveInds(moves,currMove): # turns tuples of moves into useable indexes
     else:
         return tup[0],tup[1],-1,-1
 
+def getAnimationList(ship,r1,c1,r2,c2): # creates list of moves for animation
+    animationList = []
+    sr = r1+1
+    sc = c1+1
+    er = r2+1
+    ec = c2+1
+    if(r1 == -1 and c1 == -1): # truck to ship
+        animationList.append((9,1))
+        for c in range(2,ec+1):
+            animationList.append((9,c))
+        for r in range(8,er-1,-1):
+            animationList.append((r,ec))
+        return animationList
+
+    if(r2 == -1 and c2 == -1): # ship to truck
+        animationList.append((sr,sc))
+        for r in range(sr+1,10):
+            animationList.append((r,sc))
+        for c in range(sc-1,0,-1):
+            animationList.append((9,c))
+        return animationList
+    
+    # find tops
+    tops = []
+    for j in range(12): # for each col
+        for i in range(9,-1,-1): # for each row top down
+            if (ship[i][j].desc != "UNUSED"):
+                tops.append(i) # append the first actual container and break
+                break
+        if(len(tops) != (j+1)): # if the whole column is empty, -1 index
+            tops.append(-1)
+    
+    maxHeight = -1
+    if(c1 > c2):
+        for c in range(c2,c1):
+            if(tops[c]+1 > maxHeight):
+                maxHeight = tops[c]+1 # find max height in between columns
+        maxHeight+=1
+        if(maxHeight <= sr): # dont need to go up to max height, just over and down
+            for c in range(sc,ec-1,-1):
+                animationList.append((sr,c))
+            for r in range(sr-1,er-1,-1):
+                animationList.append((r,ec))
+        else: # go up to max, then over, then down
+            for r in range(sr,maxHeight+1):
+                animationList.append((r,sc))
+            for c in range(sc-1,ec-1,-1):
+                animationList.append((maxHeight,c))
+            for r in range(maxHeight-1,er-1,-1):
+                animationList.append((r,ec))
+    else:
+        for c in range(c1+1,c2+1):
+            if(tops[c]+1 > maxHeight):
+                maxHeight = tops[c]+1 # find max height in between columns
+        maxHeight+=1
+        if(maxHeight <= sr): # dont need to go up to max height, just over and down
+            for c in range(sc,ec+1):
+                animationList.append((sr,c))
+            for r in range(sr-1,er-1,-1):
+                animationList.append((r,ec))
+        else: # go up to max, then over, then down
+            for r in range(sr,maxHeight+1):
+                animationList.append((r,sc))
+            for c in range(sc+1,ec+1):
+                animationList.append((maxHeight,c))
+            for r in range(maxHeight-1,er-1,-1):
+                animationList.append((r,ec))
+    print(animationList)
+    return animationList
+
 #---------------LOGIN WINDOW------------------------------------
 def loginWindow(): 
     #currUser : user that is logged in 
@@ -436,7 +548,7 @@ def loginWindow():
                 [sg.Column([[my_img]], justification='center')],
                 [sg.Column([[sg.Text('Enter username: ', font=body_font)]], justification='center')],  
                 [sg.Column([[sg.Input(justification='center', key='-usrnm-')]], justification='center')], 
-                [sg.Column([[sg.Button('Login'), sg.Button('Cancel')]], justification='center')],
+                [sg.Column([[sg.Button('Login', key='login_login'), sg.Button('Cancel', key='login_cancel')]], justification='center')],
             ]
     return sg.Window("SAIL ENTERPRISE - Login", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
 
@@ -448,9 +560,9 @@ def selectJob():
                 [sg.Column([[sg.Text('Current User: ' + currUser ,font=body_font)]], justification='left')],   
                 [sg.Column([[my_img]], justification='center')],
                 [sg.Column([[sg.Text('\n\nSelect an option below to continue: ', font=body_font)]], justification='center')],   
-                [sg.Column([[sg.Button('Start New Load/Unload')]], justification='center')],  
-                [sg.Column([[sg.Button('Start New Balancing Job')]], justification='center')],
-                [sg.Column([[sg.Button('Login')]], justification='center')],
+                [sg.Column([[sg.Button('Start New Load/Unload', key='main_LU')]], justification='center')],  
+                [sg.Column([[sg.Button('Start New Balancing Job', key='main_Bal')]], justification='center')],
+                [sg.Column([[sg.Button('Login', key='main_login')]], justification='center')],
             ]
     return sg.Window("SAIL ENTERPRISE - Select Job", layout1, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
 
@@ -460,9 +572,9 @@ def uploadManifest():
                 [sg.Column([[sg.Text('Current User: ' + currUser ,font=body_font)]], justification='left')],    
                 [sg.Column([[sg.Text('\n\n Upload Manifest: ', font=heading_font)]], justification='center')],   
                 [sg.Column([[sg.Text("Choose a file: "), sg.Input(), sg.FileBrowse(key="-manifest-")]], justification='center')],  
-                [sg.Column([[sg.Button('Submit Manifest')]], justification='center')],
-                [sg.Column([[sg.Button('View Manifest')]], justification='center')],
-                [sg.Column([[sg.Button('Cancel')]], justification='center')],
+                [sg.Column([[sg.Button('Submit Manifest', key='upload_submit')]], justification='center')],
+                [sg.Column([[sg.Button('View Manifest', key='upload_view')]], justification='center')],
+                [sg.Column([[sg.Button('Cancel', key='upload_cancel')]], justification='center')],
                 [sg.Column([[sg.Text('', font=body_font, key = '_text2_', visible = True)]], justification='center')],
             ]
     return sg.Window("SAIL ENTERPRISE - Upload Manifest", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
@@ -474,8 +586,8 @@ def gridSelection(ship):
                 [sg.Column([[sg.Text('Ship: ' + str(shipName), font=body_font)]], justification='left')],  
                 [sg.Column([[sg.Text('\nSelect Containers to Load/Unload: ', font=heading_font)]], justification='center')],   
                 [sg.Column([[sg.Button(f'{row},{col}') for col in range(1,13)] for row in range(8,0,-1)], justification='center')],
-                [sg.Column([[sg.Button('LOAD NEW CONTAINER')]], justification='center')],
-                [sg.Column([[sg.Button('START')]], justification='center')],
+                [sg.Column([[sg.Button('LOAD NEW CONTAINER', key='grid_loadNew')]], justification='center')],
+                [sg.Column([[sg.Button('START', key='grid_start')]], justification='center')],
                 [sg.Column([[sg.Text('\n' + loadedMsg, font=body_font, key = '_text1_', visible = True)]], justification='center')],   
             ]
     window = sg.Window("SAIL ENTERPRISE - Load/Unload Selection", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
@@ -502,7 +614,7 @@ def addContainer():
                 [sg.Column([[sg.Input(justification='center', key='-dsc-')]], justification='center')],
                 [sg.Column([[sg.Text('Enter the container weight (0-99999 kilograms)',font=body_font)]], justification='Center')],
                 [sg.Column([[sg.Input(justification='center', key='-wgt-')]], justification='center')], 
-                [sg.Column([[sg.Button('Add Container'), sg.Button('Cancel')]], justification='center')],
+                [sg.Column([[sg.Button('Add Container', key='add_add'), sg.Button('Cancel', key='add_cancel')]], justification='center')],
                 [sg.Column([[sg.Text('WARNING: You will not be able to change a container once it is added to the loading list',font=body_font)]], justification='Center')],
             ]
     return sg.Window("SAIL ENTERPRISE - Add New Container", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
@@ -530,7 +642,8 @@ def LUmovement(ship,r1,c1,r2,c2):
                 [sg.Column([[sg.Text('Description: ' + c.desc, font=body_font)]], justification='center')],
                 [sg.Column([[sg.Text('Weight: ' + str(c.weight), font=body_font)]], justification='center')],   
                 [sg.Column([[sg.Button(f'{str(row).zfill(2)},{str(col).zfill(2)}') for col in range(1,13)] for row in range(11,0,-1)], justification='center')],
-                [sg.Column([[sg.Button('Add Log'), sg.Button('NEXT'), sg.Button('Login')]], justification='center')],
+                [sg.Column([[sg.Button('Add Log', key='LUmov_addLog'), sg.Button('NEXT', key='LUmov_next'), sg.Button('Login', key='LUmov_login')]], justification='center')],
+                [sg.Column([[sg.Text('Estimated Move Time: ' + str(estimatedTimeMove), font=body_font), sg.Text('Estimated Total Time: ' + str(estimatedTimeTotal), font=body_font)]], justification='center')],
             ]
     window = sg.Window("SAIL ENTERPRISE - Move", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
     for field in window.element_list(): # loop updates the button colors on grid to match manifest given
@@ -554,211 +667,285 @@ def LUmovement(ship,r1,c1,r2,c2):
                     else:
                         field.update(button_color=("black","black"))
     return window
-#--------------------MAIN EVENT LOOP---------------------------------------------------------
-window1, selectJobWindow, uploadWindow, gridWindow, addWindow, LUmoveWindow = None, selectJob(), None, None, None, None   # start off with main window open (fix to be with whatever is saved)
 
+#---------------LOAD SAVED DATA------------------------------------
+# Gets all .saved files
+currUserFile = (os.path.join(os.path.dirname(os.path.abspath(__file__)), '.saved', 'currentUser.txt'))
+selectedJobFile = (os.path.join(os.path.dirname(os.path.abspath(__file__)), '.saved', 'selectedJob.txt'))
+backupManifestFile = (os.path.join(os.path.dirname(os.path.abspath(__file__)), '.saved', 'backupManifest.txt'))
+backupMovesFile = (os.path.join(os.path.dirname(os.path.abspath(__file__)), '.saved', 'backupMoves.txt'))
+currentMoveFile = (os.path.join(os.path.dirname(os.path.abspath(__file__)), '.saved', 'currentMove.txt'))
+backupLoadsFile = (os.path.join(os.path.dirname(os.path.abspath(__file__)), '.saved', 'backupLoads.txt'))
+backupTimesFile = (os.path.join(os.path.dirname(os.path.abspath(__file__)), '.saved', 'backupTimes.txt'))
+totalTimeFile = (os.path.join(os.path.dirname(os.path.abspath(__file__)), '.saved', 'totalTime.txt'))
+shipNameFile = (os.path.join(os.path.dirname(os.path.abspath(__file__)), '.saved', 'backupShipName.txt'))
+
+file = open(currUserFile,'r')
+currUser = file.read() # gets logged in User
+file.close()
+file = open(selectedJobFile,'r')
+selectedJob = int(file.read()) # gets selected job
+file.close()
+if(selectedJob == 1): # unload was in progress
+    ship = loadManifest(backupManifestFile) # retrieve ship state
+    moves = pickle.load(open(backupMovesFile, 'rb')) # retrieve moves list
+    file = open(currentMoveFile,'r')
+    currMove = int(file.read()) # retrieve current move
+    file.close()
+    file = open(totalTimeFile,'r')
+    estimatedTimeTotal = int(file.read()) # retrieve total estimated time
+    file.close()
+    file = open(shipNameFile,'r')
+    shipName = file.read() # retrieve ship name
+    file.close()
+    times = pickle.load(open(backupTimesFile, 'rb')) # retrieve estimated move times
+    loads = retrieveBackupLoads(backupLoadsFile) # retrieve loads
+    estimatedTimeMove = times[currMove] # set current moves estimated time
+    r1,c1,r2,c2 = retrieveInds(moves,currMove) # gets indicies for current move
+    animationList = getAnimationList(ship,r1,c1,r2,c2) # retrieves animation list
+    animationInd = 1 # index of current animation (0 is already green to start)
+    animationLen = len(animationList)
+    jobOngoing = True # set job ongoing
+    window = LUmovement(ship,r1,c1,r2,c2) # generate window based off move and ship state
+    prevWindow = None
+
+elif(selectedJob == 2):
+    pass
+
+else:
+    window, prevWindow = selectJob(), None # start off with main window open if no job going
+
+#--------------------MAIN EVENT LOOP---------------------------------------------------------
 while True:             # Event Loop
-    window, event, values = sg.read_all_windows()
+    event, values = window.read(timeout=500)
     if event == sg.WIN_CLOSED:
-        window.close()
-        if window == selectJobWindow:       # if closing selectJobWindow, mark as closed
-            selectJobWindow = None
-            break
-        elif window == uploadWindow:       
-            uploadWindow = None
-            break
-        elif window == gridWindow:       
-            gridWindow = None
-            break
-        elif window == addWindow:
-            addWindow = None
-            break
-        elif window == LUmoveWindow:
-            addWindow = None
-            break
-        elif window == window1:     # if closing win 1, exit program
-            break
+        break
    
     # LOGIN Process
-    if window == window1:
-        if event == "Login": # login button on login window
-            login(values['-usrnm-']) # updates currUser and logs sign in/off
-            print("Username:", currUser)
-            print('Login Successful - Foward to JOB SELECTION')
-            selectJobWindow = selectJob() # REDIRECT to job selection window
-            window1.Hide()
+    if event == 'login_login': # login button on login window
+        login(values['-usrnm-']) # updates currUser and logs sign in/off
+        print("Username:", currUser)
+        print('Login Successful - Foward to JOB SELECTION')
+        window.close()
+        window = selectJob() # REDIRECT to job selection window
 
-        elif event == 'Cancel': # Go back button on login window
-            print('Login Canceled - Return to JOB SELECTION')
-            selectJobWindow.UnHide() # show job selection window for current user again
-            window1.Hide()
+    elif event == 'login_cancel': # Go back button on login window
+        print('Login Canceled - Return to JOB SELECTION')
+        window.close()
+        window = selectJob() # REDIRECT to job selection window
     
     # JOB SELECTION process
-    if window == selectJobWindow:
-        if event == 'Start New Load/Unload': # LU job select button on main window
-            selectedJob = 1
-            print('LOAD/UNLOAD -- Forward to UPLOAD MANIFEST/n')
-            selectJobWindow.Hide() #closes job selection window
-            uploadWindow = uploadManifest()
+    elif event == 'main_LU': # LU job select button on main window
+        selectedJob = 1
+        print('LOAD/UNLOAD -- Forward to UPLOAD MANIFEST/n')
+        window.close() # closes job selection window
+        window = uploadManifest()
 
-        elif event == 'Start New Balancing Job': # Balance job select button on main window
-            selectedJob = 2
-            print('BALANCING -- Forward to UPLOAD MANIFEST/n')
-            selectJobWindow.Hide()
-            uploadWindow = uploadManifest()
+    elif event == 'main_Bal': # Balance job select button on main window
+        selectedJob = 2
+        print('BALANCING -- Forward to UPLOAD MANIFEST/n')
+        window.close() # closes job selection window
+        window = uploadManifest()
 
-        elif event == 'Login': # Login button on main window
-            print('Forward to LOGIN screen')
-            selectJobWindow.Hide()
-            window1 = loginWindow()   #load login window
+    elif event == 'main_login': # Login button on main window
+        print('Forward to LOGIN screen')
+        window.close() # closes job selection window
+        window = loginWindow()   # load login window
 
     # UPLOAD manifest process
-    if window == uploadWindow:
-        if event == "View Manifest": # view manifest contentes before submitting
-            if('' == values['-manifest-']): #see if file is selected
-                sg.popup("No file selected. Select file to view.",title="File Read Error") # Error message if mainfest file invalid  
-            else:
-                print("VIEWING manifest contents")
-                fileM = open(values['-manifest-'])
-                line = fileM.read()      
-                fileM.close()
-                manifestCont = '\nManifest Contents: \n' + line
-                uploadWindow['_text2_'].update(manifestCont)
-        elif event == "Submit Manifest": # submit manifest button on upload window
-            manifest = values['-manifest-'] # get input
-            #outputting manifest to window
-            #updating window to print manifest
-            ship = loadManifest(manifest) # load manifest into array
-            if(ship[0][0] == None):
-                sg.popup("Invalid manifest file, try again.",title="File Read Error") # Error message if mainfest file invalid            
-            else:
-                manifest = os.path.basename(manifest) # get manifest file name
-                addLog("Manifest " + manifest + " is opened, there are " + str(containerNum-1) + " containers on the ship") # push log                
-                shipName = manifest[:-4] # remove ".txt" from manifest to get ship name
-                print('SELECTED MANIFEST : ', manifest)
-                manifestCont = ''
-                if selectedJob == 1:
-                    loads = [] # reset loads
-                    unloads = [] # reset unloads
-                    uploadWindow.Hide()
-                    gridWindow = gridSelection(ship) # open grid slection if LU job
-                elif selectedJob == 2: 
-                    sg.popup("Start new Balancing Job") #Placeholder - forward to balancing layout 
+    elif event == 'upload_view': # view manifest contentes before submitting
+        if('' == values['-manifest-']): #see if file is selected
+            sg.popup("No file selected. Select file to view.",title="File Read Error") # Error message if mainfest file invalid  
+        else:
+            print("VIEWING manifest contents")
+            fileM = open(values['-manifest-'])
+            line = fileM.read()      
+            fileM.close()
+            manifestCont = '\nManifest Contents: \n' + line
+            window['_text2_'].update(manifestCont)
 
-        elif event == "Cancel": # cancel upload button on upload window
-            print("CANCLED Manifest upload - RETURN to Job Selection")
+    elif event == 'upload_submit': # submit manifest button on upload window
+        manifest = values['-manifest-'] # get input
+        #outputting manifest to window
+        #updating window to print manifest
+        ship = loadManifest(manifest) # load manifest into array
+        if(ship[0][0] == None):
+            sg.popup("Invalid manifest file, try again.",title="File Read Error") # Error message if mainfest file invalid            
+        else:
+            manifest = os.path.basename(manifest) # get manifest file name
+            addLog("Manifest " + manifest + " is opened, there are " + str(containerNum-1) + " containers on the ship") # push log                
+            shipName = manifest[:-4] # remove ".txt" from manifest to get ship name
+            file = open(shipNameFile,'w')
+            file.write(shipName)
+            file.close()
+            print('SELECTED MANIFEST : ', manifest)
             manifestCont = ''
-            selectedJob = 0 # restore job selection
-            selectJobWindow.UnHide()
-            uploadWindow.Hide()            
+            file = open(selectedJobFile,'w')
+            file.write(str(selectedJob)) # save selected job so we can start up again
+            file.close()
+            if selectedJob == 1:
+                loads = [] # reset loads
+                unloads = [] # reset unloads
+                window.close()
+                window = gridSelection(ship) # open grid slection if LU job
+            elif selectedJob == 2: 
+                sg.popup("Start new Balancing Job") #Placeholder - forward to balancing layout 
+
+    elif event == 'upload_cancel': # cancel upload button on upload window
+        print("CANCLED Manifest upload - RETURN to Job Selection")
+        manifestCont = ''
+        selectedJob = 0 # restore job selection
+        window.close()
+        window = selectJob() # REDIRECT to job selection window           
 
     # GRID WINDOW process
-    if window == gridWindow:
-        if event == 'LOAD NEW CONTAINER':       
-            print('ADD NEW CONTAINER -- Forward to load new container layout/n')
-            gridWindow.Hide()
-            addWindow = addContainer()
+    elif event == 'grid_loadNew':       
+        print('ADD NEW CONTAINER -- Forward to load new container layout/n')
+        prevWindow = window
+        prevWindow.Hide()
+        window = addContainer()
 
-        elif event.find(',') >= 0: # When a user clicks a grid button
-            ind = event.find(',')
-            row = int(event[0:ind])-1
-            col = int(event[ind+1:])-1
-            if(ship[row][col].num > 0): # find container they select and check if its a valid container
-                for field in gridWindow.element_list():
-                    if str(field.Key) == event: # find corresponding button
-                        if (row,col) not in unloads:
-                            unloads.append((row,col)) # add to loads if not already selected
-                            field.update(button_color=("white","green"))
-                            loadedMsg= "Selected container \"" + ship[row][col].desc + "\" Click button again to de-select it."
-                            gridWindow['_text1_'].update("\nAction: " + loadedMsg)
-                            #sg.popup(msg,title="Confirm Selection") # output confirm selection
-                        else:
-                            unloads.remove((row,col)) # remove from loads if button was already selected
-                            field.update(button_color=("white","grey"))
-                            loadedMsg= "De-select container \"" + ship[row][col].desc + "\" Click button again to select it."
-                            gridWindow['_text1_'].update("\nAction: " + loadedMsg)
-                        break
-
-        elif event == 'START': # NOT FINISHED
-            loadedMsg = ''
-            if not loads and not unloads:
-                # Go to finish screen, no algorithm needs to be run
-                fileName = os.path.join(os.path.join(os.environ['USERPROFILE']), 'Desktop', '{}OUTBOUND.txt'.format(shipName))
-                grid2Manifest(ship,fileName)
-                sg.popup("Job Complete! The updated manifest has been downloaded to the desktop as " + shipName + "OUTBOUND.txt. Remember to email it to the captain!",title="Success")
-                addLog("Finished a Cycle. Manifest " + shipName + "OUTBOUND.txt was written to desktop, and a reminder pop-up to operator to send file was displayed.")
-                gridWindow.Hide()
-                selectJobWindow = selectJob() # REDIRECT to job selection window
-                pass
+    elif event.find(',') >= 0: # When a user clicks a grid button
+        ind = event.find(',')
+        row = int(event[0:ind])-1
+        col = int(event[ind+1:])-1
+        if(ship[row][col].num > 0): # find container they select and check if its a valid container
+            if (row,col) not in unloads:
+                unloads.append((row,col)) # add to loads if not already selected
+                window[event].update(button_color=("white","green"))
+                loadedMsg= "Selected container \"" + ship[row][col].desc + "\" Click button again to de-select it."
+                window['_text1_'].update("\nAction: " + loadedMsg)
             else:
-                sg.popup("The algorithm will now run after you hit OK. This may take some time.",title="Starting Algorithm")
-                goal = LUjob(ship,loads,unloads) # run job
-                estimatedTime = goal.g # get estimated time
-                moves = goal.moves # get move list
-                currMove = 0 # index of current move
-                r1,c1,r2,c2 = retrieveInds(moves,currMove)
-                currMove+=1
-                gridWindow.Hide()
-                LUmoveWindow = LUmovement(ship,r1,c1,r2,c2) # generate window based off move and initial ship state
+                unloads.remove((row,col)) # remove from loads if button was already selected
+                window[event].update(button_color=("white","grey"))
+                loadedMsg= "De-select container \"" + ship[row][col].desc + "\" Click button again to select it."
+                window['_text1_'].update("\nAction: " + loadedMsg)
+
+    elif event == 'grid_start': # NOT FINISHED
+        loadedMsg = ''
+        if not loads and not unloads:
+            # Go to finish screen, no algorithm needs to be run
+            fileName = os.path.join(os.path.join(os.environ['USERPROFILE']), 'Desktop', '{}OUTBOUND.txt'.format(shipName))
+            grid2Manifest(ship,fileName)
+            sg.popup("Job Complete! The updated manifest has been downloaded to the desktop as " + shipName + "OUTBOUND.txt. Remember to email it to the captain!",title="Success")
+            addLog("Finished a Cycle. Manifest " + shipName + "OUTBOUND.txt was written to desktop, and a reminder pop-up to operator to send file was displayed.")
+            window.close()
+            window = selectJob() # REDIRECT to job selection window
+        else:
+            sg.popup("The algorithm will now run after you hit OK. This may take some time.",title="Starting Algorithm")
+            goal = LUjob(ship,loads,unloads) # run job
+            estimatedTimeTotal = goal.g # get estimated time
+            moves = goal.moves # get move list
+            times = goal.times # get estimated move times
+            currMove = 0 # index of current move
+            r1,c1,r2,c2 = retrieveInds(moves,currMove)
+            animationList = getAnimationList(ship,r1,c1,r2,c2) # retrieves animation list
+            animationInd = 1 # index of current animation (0 is already green to start)
+            animationLen = len(animationList)
+            estimatedTimeMove = times[currMove] # get current move estimated time
+            pickle.dump(moves, open(backupMovesFile, 'wb')) # backup moves
+            pickle.dump(times, open(backupTimesFile, 'wb')) # backup times
+            grid2Manifest(ship,backupManifestFile) # backup ship state
+            backupLoads(loads,backupLoadsFile) # backup loads
+            file = open(currentMoveFile,'w')
+            file.write(str(currMove)) # backup current move
+            file.close()
+            file = open(totalTimeFile,'w')
+            file.write(str(estimatedTimeTotal)) # backup total estimated time
+            file.close()
+            jobOngoing = True
+            window.close()
+            window = LUmovement(ship,r1,c1,r2,c2) # generate window based off move and initial ship state
 
     # ADD CONTAINER PROCESS
-    if window == addWindow:
-        if event == 'Add Container': # add container button on add window
-            description = str(values['-dsc-'])
-            weight = int(values['-wgt-'])
-            if(len(description) > 256) or (weight < 0) or (weight > 99999): # check validity of inputs
-                sg.popup("Invalid weight or description length",title="Input Error")
-            else:
-                c = Container() # create new container
-                c.weight = weight
-                c.desc = description
-                c.num = containerNum
-                containerNum+=1
-                loads.append(c) # add to loads
-                sg.popup("Successfully added container to load list.",title="Success")
-                print("ADDED new container to load list: ", description, " weight: ", weight)
-                gridWindow.UnHide()
-                addWindow.Hide()
+    elif event == 'add_add': # add container button on add window
+        description = str(values['-dsc-'])
+        weight = int(values['-wgt-'])
+        if(len(description) > 256) or (weight < 0) or (weight > 99999): # check validity of inputs
+            sg.popup("Invalid weight or description length",title="Input Error")
+        else:
+            c = Container() # create new container
+            c.weight = weight
+            c.desc = description
+            c.num = containerNum
+            containerNum+=1
+            loads.append(c) # add to loads
+            sg.popup("Successfully added container to load list.",title="Success")
+            print("ADDED new container to load list: ", description, " weight: ", weight)
+            window.close()
+            window = prevWindow
+            window.UnHide()
 
-        elif event == 'Cancel': # Cancel Button on add window
-            gridWindow.UnHide()
-            addWindow.Hide()
+    elif event == 'add_cancel': # Cancel Button on add window
+        window.close()
+        window = prevWindow
+        window.UnHide()
 
     # MOVEMENT PROCESS
-    if window == LUmoveWindow:
-        if event == "Add Log":
-            pass
-        elif event == "NEXT": # NEXT button in move Window
-            r1,c1,r2,c2 = retrieveInds(moves,currMove-1)
-            # make sure ship is updated with the move (since they hit next confirming they made the move)
-            if r1 == -1 and c1 == -1: # load
-                c = loads[-1]
-                loads = loads[:-1]
+    elif event == 'LUmov_add':
+        pass
+
+    elif event == 'LUmov_next': # NEXT button in move Window
+        r1,c1,r2,c2 = retrieveInds(moves,currMove)
+        # make sure ship is updated with the move (since they hit next confirming they made the move)
+        if r1 == -1 and c1 == -1: # load
+            c = loads[-1]
+            loads = loads[:-1]
+            ship[r2][c2] = c # load container
+            addLog("\"" + c.desc + "\" is onloaded.") # push log if onload
+            backupLoads(loads,backupLoadsFile) # backup loads
+        else:
+            c = ship[r1][c1]
+            if r2 == -1 and c2 == -1: # unload
+                addLog("\"" + c.desc + "\" is offloaded.") # push log if offload
+                ship[r1][c1].desc = "UNUSED" # spot is now empty
+                ship[r1][c1].weight = 0
+                ship[r1][c1].num = 0
+            else: # internal move
+                ship[r1][c1] = ship[r2][c2] # swap
                 ship[r2][c2] = c
-                addLog("\"" + c.desc + "\" is onloaded.") # push log if onload
+        currMove+=1
+        if currMove == len(moves): # last move was completed, so we are done and can download new manifest
+            jobOngoing = False
+            fileName = os.path.join(os.path.join(os.environ['USERPROFILE']), 'Desktop', '{}OUTBOUND.txt'.format(shipName))
+            grid2Manifest(ship,fileName)
+            sg.popup("Job Complete! The updated manifest has been downloaded to the desktop as " + shipName + "OUTBOUND.txt. Remember to email it to the captain!",title="Success")
+            addLog("Finished a Cycle. Manifest " + shipName + "OUTBOUND.txt was written to desktop, and a reminder pop-up to operator to send file was displayed.")
+            selectedJob = 0
+            file = open(selectedJobFile,'w')
+            file.write(str(selectedJob)) # backup selected job so we default startup to main page
+            file.close()
+            window.close()
+            window = selectJob() # REDIRECT to job selection window
+        else:
+            grid2Manifest(ship,backupManifestFile) # backup new ship state
+            file = open(currentMoveFile,'w')
+            file.write(str(currMove)) # backup current move
+            file.close()
+            r1,c1,r2,c2 = retrieveInds(moves,currMove)
+            animationList = getAnimationList(ship,r1,c1,r2,c2) # get new animation list
+            animationInd = 1 # index of current animation (0 is already green to start)
+            animationLen = len(animationList)
+            estimatedTimeMove = times[currMove]
+            window.close()
+            window = LUmovement(ship,r1,c1,r2,c2) # else, generate new window based on new ship and next move
+    
+    elif event == 'LUmov_login':
+        pass
+
+    elif event == sg.TIMEOUT_KEY:
+        if(jobOngoing):
+            animationStr = str(animationList[animationInd][0]).zfill(2) + ',' + str(animationList[animationInd][1]).zfill(2)
+            window[animationStr].update(button_color=("white","green")) # update current animation to green
+            if(animationInd == 0):
+                animationStr = str(animationList[animationLen-1][0]).zfill(2) + ',' + str(animationList[animationLen-1][1]).zfill(2)
+                window[animationStr].update(button_color=("white","red")) # update ending slot back to red if it was turned green
             else:
-                c = ship[r1][c1]
-                if r2 == -1 and c2 == -1: # unload
-                    addLog("\"" + c.desc + "\" is offloaded.") # push log if offload
-                    ship[r1][c1].desc = "UNUSED"
-                    ship[r1][c1].weight = 0
-                    ship[r1][c1].num = 0
-                else: # internal move
-                    ship[r1][c1] = ship[r2][c2]
-                    ship[r2][c2] = c
-            if currMove == len(moves): # last move was completed, so we are done and can download new manifest
-                fileName = os.path.join(os.path.join(os.environ['USERPROFILE']), 'Desktop', '{}OUTBOUND.txt'.format(shipName))
-                grid2Manifest(ship,fileName)
-                sg.popup("Job Complete! The updated manifest has been downloaded to the desktop as " + shipName + "OUTBOUND.txt. Remember to email it to the captain!",title="Success")
-                addLog("Finished a Cycle. Manifest " + shipName + "OUTBOUND.txt was written to desktop, and a reminder pop-up to operator to send file was displayed.")
-                LUmoveWindow.Hide()
-                selectJobWindow = selectJob() # REDIRECT to job selection window
+                animationStr = str(animationList[animationInd-1][0]).zfill(2) + ',' + str(animationList[animationInd-1][1]).zfill(2)
+                window[animationStr].update(button_color=("white","white")) # update previous green slot back to white
+            if(animationInd == animationLen-1):
+                animationInd = 0 # wraparound
             else:
-                r1,c1,r2,c2 = retrieveInds(moves,currMove)
-                currMove+=1
-                LUmoveWindow.Hide()
-                LUmoveWindow = LUmovement(ship,r1,c1,r2,c2) # else, generate new window based on new ship and next move
-        elif event == "Login":
-            pass
-        
+                animationInd+=1 # increment index
+
 window.close()

@@ -1,4 +1,0 @@
-03-05-2022: 12:47:55 Tombo signs in
-03-05-2022: 12:48:02 Manifest ShipCase1.txt is opened, there are 2 containers on the ship
-03-05-2022: 12:48:07 "Dog" is offloaded.
-03-05-2022: 12:48:16 Finished a Cycle. Manifest ShipCase1OUTBOUND.txt was written to desktop, and a reminder pop-up to operator to send file was displayed.
