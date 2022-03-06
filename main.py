@@ -29,8 +29,6 @@ file = open((os.path.join(os.path.dirname(os.path.abspath(__file__)), '.saved', 
 currUser = file.read()
 loadedMsg = ''
 manifestCont = ''
-start = 0
-end = 0
 #---------------CLASSES------------------------------------
 class Container(object):
     # container.weight
@@ -560,7 +558,7 @@ def LUmovement(ship,r1,c1,r2,c2):
 window1, selectJobWindow, uploadWindow, gridWindow, addWindow, LUmoveWindow = None, selectJob(), None, None, None, None   # start off with main window open (fix to be with whatever is saved)
 
 while True:             # Event Loop
-    window, event, values = sg.read_all_windows(timeout=1000)
+    window, event, values = sg.read_all_windows()
     if event == sg.WIN_CLOSED:
         window.close()
         if window == selectJobWindow:       # if closing selectJobWindow, mark as closed
@@ -755,7 +753,6 @@ while True:             # Event Loop
                 addLog("Finished a Cycle. Manifest " + shipName + "OUTBOUND.txt was written to desktop, and a reminder pop-up to operator to send file was displayed.")
                 LUmoveWindow.Hide()
                 selectJobWindow = selectJob() # REDIRECT to job selection window
-                break
             else:
                 r1,c1,r2,c2 = retrieveInds(moves,currMove)
                 currMove+=1
@@ -763,7 +760,5 @@ while True:             # Event Loop
                 LUmoveWindow = LUmovement(ship,r1,c1,r2,c2) # else, generate new window based on new ship and next move
         elif event == "Login":
             pass
-        elif event == sg.TIMEOUT_KEY:
-            print("second")
         
 window.close()
