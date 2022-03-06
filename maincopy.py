@@ -12,6 +12,7 @@ import heapq
 import io, sys
 import numpy as np
 from numpy import empty
+import pickle
 
 sg.theme('DefaultNoMoreNagging') 
 
@@ -24,15 +25,16 @@ global containerNum # tracks unique containers
 global loads, unloads # tracks loads unloads before job starts
 global loadedMsg, manifestCont #tracks what has been selected / deselected and manifest content
 global currUser # Global variable to store currently logged in user
-#file = open("CS179M_Project/.saved/currentUser.txt", "r") # saved file holds currently logged in user (for power failure)
-file = open((os.path.join(os.path.dirname(os.path.abspath(__file__)), '.saved', 'currentUser.txt')),'r')
-currUser = file.read()
+global selectedJob
+
 loadedMsg = ''
 manifestCont = ''
 jobOngoing = False
 animationList = []
 animationInd = -1
 animationLen = 0
+estimatedTimeTotal = 0
+estimatedTimeTotal = 0
 
 #---------------CLASSES------------------------------------
 class Container(object):
@@ -157,16 +159,41 @@ def grid2Manifest(ship, filename): # uploads 2D array into manifest format
     textfile.close()
     print('NEW MANIFEST DOWNLOAD READY : {}'.format(filename))
 
+def backupLoads(loads, filename): # backup the containers in load to the saved file
+    file = open(filename,'w')
+    for element in loads:
+        file.write('{},{}\n'.format(element.weight, element.desc))
+    file.close()
+
+def retrieveBackupLoads(filename): # retrieve containers in loads back into array
+    global containerNum
+    file = open(filename,'r')
+    f = file.readlines()
+    l = []
+    for line in f:
+        c = Container()
+        c.num = containerNum
+        containerNum+=1
+        ind = line.find(',')
+        c.weight = int(line[0:ind])
+        if(line[-1 == '\n']): # dont record endline in description
+            line = line[:-1]
+        c.desc = str(line[ind+1:])
+        l.append(c)
+    file.close()
+    return l
+
 #---------------LU MAIN FUNCTIONS------------------------------------
 def LUjob(ship,loads,unloads): # initalizes state and computes the goal for LU
     initState = LUstate()
     initState.ship = ship
     initState.loads = loads
     initState.unloads = unloads
-    initState.cranePos = (-1,-1) # crane starts on dock by truck
+    initState.cranePos = (-1,-1) # crane starts at the dock
     LUheuristic(initState)
     initState.g = 0
     initState.moves = []
+    initState.times = []
     return LUsearch(initState)
 
 def LUsearch(initState): # A* search for LU jobs
@@ -204,12 +231,15 @@ def LUexpand(state, q): # expands given state for LU job
             continue
         if((i,j) in state.unloads): # container is an unload
             copy = LUstateCopy(state)
+            cost = 0
             copy.unloads.remove((i,j)) # remove container from unloads
             if(copy.cranePos == (-1,-1)): # check if crane is by truck
-                copy.g += (abs(i-8) + abs(j-0) + 2)
+                cost += (abs(i-8) + abs(j-0) + 2)
             else: # move crane to container position
-                copy.g += manhattenDist(copy.cranePos[0],copy.cranePos[1],i,j,tops)
-            copy.g += (abs(i-8) + abs(j-0) + 2) # add distance to unload container to g
+                cost += manhattenDist(copy.cranePos[0],copy.cranePos[1],i,j,tops)
+            cost += (abs(i-8) + abs(j-0) + 2) # add distance to unload container to cost
+            copy.g += cost
+            copy.times.append(cost)
             copy.cranePos = (-1,-1) # leave cranePos at the truck
             copy.ship[i][j].weight = 0 # move container
             copy.ship[i][j].desc = "UNUSED"
@@ -224,11 +254,14 @@ def LUexpand(state, q): # expands given state for LU job
                     r = tops[c]+1 # get row location of move (1 above the top)
                     if((r < 10) and (state.ship[i][j].desc != "NAN")): # Check that the col is not the max col height or top container is NAN
                         copy = LUstateCopy(state)
+                        cost = 0
                         if(copy.cranePos == (-1,-1)): # check if crane is by truck
-                            copy.g += (abs(i-8) + abs(j-0) + 2)
+                            cost += (abs(i-8) + abs(j-0) + 2)
                         else: # move crane to container position
-                            copy.g += manhattenDist(copy.cranePos[0],copy.cranePos[1],i,j,tops)
-                        copy.g += manhattenDist(i,j,r,c,tops) # add cost of move to g
+                            cost += manhattenDist(copy.cranePos[0],copy.cranePos[1],i,j,tops)
+                        cost += manhattenDist(i,j,r,c,tops) # add cost of move to cost
+                        copy.g += cost
+                        copy.times.append(cost)
                         copy.cranePos = (r,c) # leave crane at dropoff position
                         copy.ship[r][c].weight = copy.ship[i][j].weight # move container
                         copy.ship[r][c].desc = copy.ship[i][j].desc
@@ -245,9 +278,12 @@ def LUexpand(state, q): # expands given state for LU job
             r = tops[c]+1 # get placement location (1 above top)
             if(r < 10): # Check that the col is not the max col height
                 copy = LUstateCopy(state)
+                cost = 0
                 if(copy.cranePos != (-1,-1)): # check if crane is not by truck
-                    copy.g += (abs(copy.cranePos[0]-8) + abs(copy.cranePos[1]-0) + 2) # move crane to truck position
-                copy.g += (abs(r-8) + abs(c-0) + 2) # add cost of load to g
+                    cost += (abs(copy.cranePos[0]-8) + abs(copy.cranePos[1]-0) + 2) # move crane to truck position
+                cost += (abs(r-8) + abs(c-0) + 2) # add cost of load to cost
+                copy.g += cost
+                copy.times.append(cost)
                 copy.cranePos = (r,c) # leave crane at dropoff position
                 copy.ship[r][c].weight = copy.loads[-1].weight # move container
                 copy.ship[r][c].desc = copy.loads[-1].desc
@@ -261,11 +297,11 @@ def LUexpand(state, q): # expands given state for LU job
 def LUheuristic(state): # COMPLETE: find h(n) of a given LUstate, store in state parameter automatically
     tops = findTops(state)
     ship = state.ship
-    tempPos = state.cranePos
     h = 0
     for j in range(12): # for each col
         for i in range(tops[j]+1): # for each row with filled containers
             if((i,j) in state.unloads): # check if container needs to be unloaded
+                tempPos=(j,tops[j])
                 for k in range(tops[j],i-1,-1): # for the rest of the containers from top to found unload
                     if(tempPos == (-1,-1)):
                         h+=(abs(k-8) + abs(j-0) + 2) # move crane from truck to container
@@ -345,6 +381,7 @@ def LUstateCopy(state): # Copies an LU state
     
     copy.unloads = state.unloads.copy() # unload array is tuples, so this works
     copy.moves = state.moves.copy() # moves array is tuples, so this works
+    copy.times = state.times.copy()
     copy.cranePos = state.cranePos
 
     return copy
@@ -606,6 +643,7 @@ def LUmovement(ship,r1,c1,r2,c2):
                 [sg.Column([[sg.Text('Weight: ' + str(c.weight), font=body_font)]], justification='center')],   
                 [sg.Column([[sg.Button(f'{str(row).zfill(2)},{str(col).zfill(2)}') for col in range(1,13)] for row in range(11,0,-1)], justification='center')],
                 [sg.Column([[sg.Button('Add Log', key='LUmov_addLog'), sg.Button('NEXT', key='LUmov_next'), sg.Button('Login', key='LUmov_login')]], justification='center')],
+                [sg.Column([[sg.Text('Estimated Move Time: ' + str(estimatedTimeMove), font=body_font), sg.Text('Estimated Total Time: ' + str(estimatedTimeTotal), font=body_font)]], justification='center')],
             ]
     window = sg.Window("SAIL ENTERPRISE - Move", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
     for field in window.element_list(): # loop updates the button colors on grid to match manifest given
@@ -629,11 +667,57 @@ def LUmovement(ship,r1,c1,r2,c2):
                     else:
                         field.update(button_color=("black","black"))
     return window
-#--------------------MAIN EVENT LOOP---------------------------------------------------------
-window, prevWindow = selectJob(), None # start off with main window open (fix to be with whatever is saved)
 
+#---------------LOAD SAVED DATA------------------------------------
+# Gets all .saved files
+currUserFile = (os.path.join(os.path.dirname(os.path.abspath(__file__)), '.saved', 'currentUser.txt'))
+selectedJobFile = (os.path.join(os.path.dirname(os.path.abspath(__file__)), '.saved', 'selectedJob.txt'))
+backupManifestFile = (os.path.join(os.path.dirname(os.path.abspath(__file__)), '.saved', 'backupManifest.txt'))
+backupMovesFile = (os.path.join(os.path.dirname(os.path.abspath(__file__)), '.saved', 'backupMoves.txt'))
+currentMoveFile = (os.path.join(os.path.dirname(os.path.abspath(__file__)), '.saved', 'currentMove.txt'))
+backupLoadsFile = (os.path.join(os.path.dirname(os.path.abspath(__file__)), '.saved', 'backupLoads.txt'))
+backupTimesFile = (os.path.join(os.path.dirname(os.path.abspath(__file__)), '.saved', 'backupTimes.txt'))
+totalTimeFile = (os.path.join(os.path.dirname(os.path.abspath(__file__)), '.saved', 'totalTime.txt'))
+shipNameFile = (os.path.join(os.path.dirname(os.path.abspath(__file__)), '.saved', 'backupShipName.txt'))
+
+file = open(currUserFile,'r')
+currUser = file.read() # gets logged in User
+file.close()
+file = open(selectedJobFile,'r')
+selectedJob = int(file.read()) # gets selected job
+file.close()
+if(selectedJob == 1): # unload was in progress
+    ship = loadManifest(backupManifestFile) # retrieve ship state
+    moves = pickle.load(open(backupMovesFile, 'rb')) # retrieve moves list
+    file = open(currentMoveFile,'r')
+    currMove = int(file.read()) # retrieve current move
+    file.close()
+    file = open(totalTimeFile,'r')
+    estimatedTimeTotal = int(file.read()) # retrieve total estimated time
+    file.close()
+    file = open(shipNameFile,'r')
+    shipName = file.read() # retrieve ship name
+    file.close()
+    times = pickle.load(open(backupTimesFile, 'rb')) # retrieve estimated move times
+    loads = retrieveBackupLoads(backupLoadsFile) # retrieve loads
+    estimatedTimeMove = times[currMove] # set current moves estimated time
+    r1,c1,r2,c2 = retrieveInds(moves,currMove) # gets indicies for current move
+    animationList = getAnimationList(ship,r1,c1,r2,c2) # retrieves animation list
+    animationInd = 1 # index of current animation (0 is already green to start)
+    animationLen = len(animationList)
+    jobOngoing = True # set job ongoing
+    window = LUmovement(ship,r1,c1,r2,c2) # generate window based off move and ship state
+    prevWindow = None
+
+elif(selectedJob == 2):
+    pass
+
+else:
+    window, prevWindow = selectJob(), None # start off with main window open if no job going
+
+#--------------------MAIN EVENT LOOP---------------------------------------------------------
 while True:             # Event Loop
-    event, values = window.read(timeout=1000)
+    event, values = window.read(timeout=500)
     if event == sg.WIN_CLOSED:
         break
    
@@ -691,8 +775,14 @@ while True:             # Event Loop
             manifest = os.path.basename(manifest) # get manifest file name
             addLog("Manifest " + manifest + " is opened, there are " + str(containerNum-1) + " containers on the ship") # push log                
             shipName = manifest[:-4] # remove ".txt" from manifest to get ship name
+            file = open(shipNameFile,'w')
+            file.write(shipName)
+            file.close()
             print('SELECTED MANIFEST : ', manifest)
             manifestCont = ''
+            file = open(selectedJobFile,'w')
+            file.write(str(selectedJob)) # save selected job so we can start up again
+            file.close()
             if selectedJob == 1:
                 loads = [] # reset loads
                 unloads = [] # reset unloads
@@ -744,14 +834,25 @@ while True:             # Event Loop
         else:
             sg.popup("The algorithm will now run after you hit OK. This may take some time.",title="Starting Algorithm")
             goal = LUjob(ship,loads,unloads) # run job
-            estimatedTime = goal.g # get estimated time
+            estimatedTimeTotal = goal.g # get estimated time
             moves = goal.moves # get move list
+            times = goal.times # get estimated move times
             currMove = 0 # index of current move
             r1,c1,r2,c2 = retrieveInds(moves,currMove)
             animationList = getAnimationList(ship,r1,c1,r2,c2) # retrieves animation list
             animationInd = 1 # index of current animation (0 is already green to start)
             animationLen = len(animationList)
-            currMove+=1
+            estimatedTimeMove = times[currMove] # get current move estimated time
+            pickle.dump(moves, open(backupMovesFile, 'wb')) # backup moves
+            pickle.dump(times, open(backupTimesFile, 'wb')) # backup times
+            grid2Manifest(ship,backupManifestFile) # backup ship state
+            backupLoads(loads,backupLoadsFile) # backup loads
+            file = open(currentMoveFile,'w')
+            file.write(str(currMove)) # backup current move
+            file.close()
+            file = open(totalTimeFile,'w')
+            file.write(str(estimatedTimeTotal)) # backup total estimated time
+            file.close()
             jobOngoing = True
             window.close()
             window = LUmovement(ship,r1,c1,r2,c2) # generate window based off move and initial ship state
@@ -785,37 +886,47 @@ while True:             # Event Loop
         pass
 
     elif event == 'LUmov_next': # NEXT button in move Window
-        r1,c1,r2,c2 = retrieveInds(moves,currMove-1)
+        r1,c1,r2,c2 = retrieveInds(moves,currMove)
         # make sure ship is updated with the move (since they hit next confirming they made the move)
         if r1 == -1 and c1 == -1: # load
             c = loads[-1]
             loads = loads[:-1]
-            ship[r2][c2] = c
+            ship[r2][c2] = c # load container
             addLog("\"" + c.desc + "\" is onloaded.") # push log if onload
+            backupLoads(loads,backupLoadsFile) # backup loads
         else:
             c = ship[r1][c1]
             if r2 == -1 and c2 == -1: # unload
                 addLog("\"" + c.desc + "\" is offloaded.") # push log if offload
-                ship[r1][c1].desc = "UNUSED"
+                ship[r1][c1].desc = "UNUSED" # spot is now empty
                 ship[r1][c1].weight = 0
                 ship[r1][c1].num = 0
             else: # internal move
-                ship[r1][c1] = ship[r2][c2]
+                ship[r1][c1] = ship[r2][c2] # swap
                 ship[r2][c2] = c
+        currMove+=1
         if currMove == len(moves): # last move was completed, so we are done and can download new manifest
             jobOngoing = False
             fileName = os.path.join(os.path.join(os.environ['USERPROFILE']), 'Desktop', '{}OUTBOUND.txt'.format(shipName))
             grid2Manifest(ship,fileName)
             sg.popup("Job Complete! The updated manifest has been downloaded to the desktop as " + shipName + "OUTBOUND.txt. Remember to email it to the captain!",title="Success")
             addLog("Finished a Cycle. Manifest " + shipName + "OUTBOUND.txt was written to desktop, and a reminder pop-up to operator to send file was displayed.")
+            selectedJob = 0
+            file = open(selectedJobFile,'w')
+            file.write(str(selectedJob)) # backup selected job so we default startup to main page
+            file.close()
             window.close()
             window = selectJob() # REDIRECT to job selection window
         else:
+            grid2Manifest(ship,backupManifestFile) # backup new ship state
+            file = open(currentMoveFile,'w')
+            file.write(str(currMove)) # backup current move
+            file.close()
             r1,c1,r2,c2 = retrieveInds(moves,currMove)
             animationList = getAnimationList(ship,r1,c1,r2,c2) # get new animation list
             animationInd = 1 # index of current animation (0 is already green to start)
             animationLen = len(animationList)
-            currMove+=1
+            estimatedTimeMove = times[currMove]
             window.close()
             window = LUmovement(ship,r1,c1,r2,c2) # else, generate new window based on new ship and next move
     
