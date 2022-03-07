@@ -16,25 +16,23 @@ import pickle
 
 sg.theme('DefaultNoMoreNagging') 
 
-global heading_font, body_font # fonts
-heading_font = ("Arial, 24")
+# globals
+heading_font = ("Arial, 24") # Fonts
 body_font = ("Arial, 14")
-
-global entryCount # tie breaker for states with equal priority
-global containerNum # tracks unique containers
-global loads, unloads # tracks loads unloads before job starts
-global loadedMsg, manifestCont #tracks what has been selected / deselected and manifest content
-global currUser # Global variable to store currently logged in user
-global selectedJob
-
-loadedMsg = ''
-manifestCont = ''
-jobOngoing = False
-animationList = []
-animationInd = -1
-animationLen = 0
-estimatedTimeTotal = 0
-estimatedTimeTotal = 0
+entryCount = 0 # tie breaker for states with equal priority
+containerNum = 1 # tracks unique containers
+loads = [] # tracks loads before job starts
+unloads = [] # tracks unloads before job starts
+loadedMsg = '' # # tracks what has been selected
+manifestCont = '' # tracks deselected and manifest content
+currUser = '' # Global variable to store currently logged in user
+selectedJob = 0 # tracks the currently selected job
+jobOngoing = False # tracks if a job is ongoing
+animationList = [] # stroes the list for the animation
+animationInd = -1 # stores the index for the animation
+animationLen = 0 # stores length of aniation
+estimatedTimeTotal = '' # stores estimated time of entire job
+estimatedTimeMove = '' # stores estimated time of particular move (crane move time + container move time)
 
 #---------------CLASSES------------------------------------
 class Container(object):
@@ -47,6 +45,8 @@ class LUstate(object):
     # state.g
     # state.h
     # state.cranePos
+    # state.hasContainer
+    # state.times
     # state.loads
     # state.unloads
     # state.moves
@@ -190,6 +190,7 @@ def LUjob(ship,loads,unloads): # initalizes state and computes the goal for LU
     initState.loads = loads
     initState.unloads = unloads
     initState.cranePos = (-1,-1) # crane starts at the dock
+    initState.hasContainer = False
     LUheuristic(initState)
     initState.g = 0
     initState.moves = []
@@ -225,72 +226,117 @@ def LUsearch(initState): # A* search for LU jobs
 def LUexpand(state, q): # expands given state for LU job
     global entryCount
     tops = findTops(state)
-    for j in range(12): # for each column
-        i = tops[j] # get row of container to move
-        if(i < 0): # no containers in that column
-            continue
-        if((i,j) in state.unloads): # container is an unload
-            copy = LUstateCopy(state)
-            cost = 0
-            copy.unloads.remove((i,j)) # remove container from unloads
-            if(copy.cranePos == (-1,-1)): # check if crane is by truck
-                cost += (abs(i-8) + abs(j-0) + 2)
-            else: # move crane to container position
-                cost += manhattenDist(copy.cranePos[0],copy.cranePos[1],i,j,tops)
-            cost += (abs(i-8) + abs(j-0) + 2) # add distance to unload container to cost
-            copy.g += cost
-            copy.times.append(cost)
-            copy.cranePos = (-1,-1) # leave cranePos at the truck
-            copy.ship[i][j].weight = 0 # move container
-            copy.ship[i][j].desc = "UNUSED"
-            copy.ship[i][j].num = 0
-            copy.moves.append((i,j,"Truck")) # track move
-            LUheuristic(copy) # calculate new heuristic
-            heapq.heappush(q, ((copy.g + copy.h), entryCount, copy)) # push copy to queue
-            entryCount+=1
-        else: # container is not an unload
-            for c in range(12): # for every other column
-                if (c != j):
-                    r = tops[c]+1 # get row location of move (1 above the top)
-                    if((r < 10) and (state.ship[i][j].desc != "NAN")): # Check that the col is not the max col height or top container is NAN
-                        copy = LUstateCopy(state)
-                        cost = 0
-                        if(copy.cranePos == (-1,-1)): # check if crane is by truck
-                            cost += (abs(i-8) + abs(j-0) + 2)
-                        else: # move crane to container position
-                            cost += manhattenDist(copy.cranePos[0],copy.cranePos[1],i,j,tops)
-                        cost += manhattenDist(i,j,r,c,tops) # add cost of move to cost
-                        copy.g += cost
-                        copy.times.append(cost)
-                        copy.cranePos = (r,c) # leave crane at dropoff position
-                        copy.ship[r][c].weight = copy.ship[i][j].weight # move container
-                        copy.ship[r][c].desc = copy.ship[i][j].desc
-                        copy.ship[r][c].num = copy.ship[i][j].num
-                        copy.ship[i][j].weight = 0
-                        copy.ship[i][j].desc = "UNUSED"
-                        copy.ship[i][j].num = 0
-                        copy.moves.append((i,j,r,c))
-                        LUheuristic(copy) # calculate new heuristic
-                        heapq.heappush(q, ((copy.g + copy.h), entryCount, copy)) # push copy to queue
-                        entryCount+=1
-    if (len(copy.loads) > 0): # load a container to every column
-        for c in range(12): # for every column
-            r = tops[c]+1 # get placement location (1 above top)
-            if(r < 10): # Check that the col is not the max col height
+    if(state.hasContainer): # container attached to crane, expand by moving containers
+        if(state.cranePos == (-1,-1)): # crane is attached to a load container
+            for c in range(12): # unload to all valid columns
+                r = tops[c]+1
+                if(r == 10):
+                    continue
                 copy = LUstateCopy(state)
-                cost = 0
-                if(copy.cranePos != (-1,-1)): # check if crane is not by truck
-                    cost += (abs(copy.cranePos[0]-8) + abs(copy.cranePos[1]-0) + 2) # move crane to truck position
-                cost += (abs(r-8) + abs(c-0) + 2) # add cost of load to cost
-                copy.g += cost
-                copy.times.append(cost)
+                copy.hasContainer = False
+                cost = (abs(r-8) + abs(c-0) + 2)
+                copy.g += cost # add cost of load to g
+                cost += copy.times[-1]
+                copy.times[-1] = str(datetime.timedelta(minutes=cost))[:-3]
                 copy.cranePos = (r,c) # leave crane at dropoff position
                 copy.ship[r][c].weight = copy.loads[-1].weight # move container
                 copy.ship[r][c].desc = copy.loads[-1].desc
                 copy.ship[r][c].num = copy.loads[-1].num
                 copy.loads = copy.loads[:-1] # remove container from loads
-                copy.moves.append(("Truck",r,c)) # track move   
+                copy.moves.append(("Truck",r,c)) # track move 
+                copy.hasContainer = False  
                 LUheuristic(copy) # calculate new heuristic
+                heapq.heappush(q, ((copy.g + copy.h), entryCount, copy)) # push copy to queue
+                entryCount+=1
+        else: # crane is attached to container on the ship
+            if(state.cranePos in state.unloads): # container is an unload
+                copy = LUstateCopy(state)
+                copy.unloads.remove(copy.cranePos) # remove container from unloads
+                i = copy.cranePos[0]
+                j = copy.cranePos[1]
+                cost = (abs(i-8) + abs(j-0) + 2)
+                copy.g += cost # add distance to unload container to g
+                cost += copy.times[-1]
+                copy.times[-1] = str(datetime.timedelta(minutes=cost))[:-3]
+                copy.cranePos = (-1,-1) # leave cranePos at the truck
+                copy.ship[i][j].weight = 0 # move container
+                copy.ship[i][j].desc = "UNUSED"
+                copy.ship[i][j].num = 0
+                copy.moves.append((i,j,"Truck")) # track move
+                copy.hasContainer = False
+                LUheuristic(copy) # calculate new heuristic
+                heapq.heappush(q, ((copy.g + copy.h), entryCount, copy)) # push copy to queue
+                entryCount+=1
+            else: # container is not an unload
+                for c in range(12): # move to all other valid columns
+                    r = tops[c]+1
+                    if (c == state.cranePos[1]) or (r == 10):
+                        continue
+                    copy = LUstateCopy(state)
+                    i = copy.cranePos[0]
+                    j = copy.cranePos[1]
+                    cost = manhattenDist(i,j,r,c,tops)
+                    copy.g += cost # move container
+                    cost += copy.times[-1]
+                    copy.times[-1] = str(datetime.timedelta(minutes=cost))[:-3]
+                    copy.cranePos = (r,c) # leave crane at dropoff position
+                    copy.ship[r][c].weight = copy.ship[i][j].weight # swap container
+                    copy.ship[r][c].desc = copy.ship[i][j].desc
+                    copy.ship[r][c].num = copy.ship[i][j].num
+                    copy.ship[i][j].weight = 0
+                    copy.ship[i][j].desc = "UNUSED"
+                    copy.ship[i][j].num = 0
+                    copy.moves.append((i,j,r,c))
+                    copy.hasContainer = False
+                    LUheuristic(copy) # calculate new heuristic
+                    heapq.heappush(q, ((copy.g + copy.h), entryCount, copy)) # push copy to queue
+                    entryCount+=1  
+    else: # crane does not have contianer, expand by moving crane to contianer positions
+        if(state.cranePos == (-1,-1)): # crane is by the truck
+            if (len(state.loads) > 0): # still loads, so attach container
+                copy = LUstateCopy(state)
+                copy.hasContainer = True
+                copy.times.append(0)
+                LUheuristic(copy)
+                heapq.heappush(q, ((copy.g + copy.h), entryCount, copy)) # push copy to queue
+                entryCount+=1
+            for c in range(12):
+                r = tops[c]
+                if (r == -1) or (state.ship[r][c].num == -1): # column is empty
+                    continue
+                copy = LUstateCopy(state)
+                cost = (abs(r-8) + abs(c-0) + 2)
+                copy.g += cost # add cost of move to g
+                copy.times.append(cost)
+                copy.cranePos = (r,c)
+                copy.hasContainer = True
+                LUheuristic(copy)
+                heapq.heappush(q, ((copy.g + copy.h), entryCount, copy)) # push copy to queue
+                entryCount+=1 
+        else:
+            i = state.cranePos[0]
+            j = state.cranePos[1]
+            if (len(state.loads) > 0): # still loads, so attach container
+                copy = LUstateCopy(state)
+                cost = (abs(i-8) + abs(j-0) + 2)
+                copy.g += cost # add cost of move to g
+                copy.times.append(cost)
+                copy.hasContainer = True
+                copy.cranePos = (-1,-1)
+                LUheuristic(copy)
+                heapq.heappush(q, ((copy.g + copy.h), entryCount, copy)) # push copy to queue
+                entryCount+=1
+            for c in range(12):
+                r = tops[c]
+                if (r == -1) or (state.ship[r][c].num == -1): # column is empty
+                    continue
+                copy = LUstateCopy(state)
+                cost = manhattenDist(i,j,r,c,tops)
+                copy.g += cost # move crane into position
+                copy.times.append(cost)
+                copy.cranePos = (r,c)
+                copy.hasContainer = True
+                LUheuristic(copy)
                 heapq.heappush(q, ((copy.g + copy.h), entryCount, copy)) # push copy to queue
                 entryCount+=1
 
@@ -301,7 +347,7 @@ def LUheuristic(state): # COMPLETE: find h(n) of a given LUstate, store in state
     for j in range(12): # for each col
         for i in range(tops[j]+1): # for each row with filled containers
             if((i,j) in state.unloads): # check if container needs to be unloaded
-                tempPos=(j,tops[j])
+                tempPos=(tops[j],j)
                 for k in range(tops[j],i-1,-1): # for the rest of the containers from top to found unload
                     if(tempPos == (-1,-1)):
                         h+=(abs(k-8) + abs(j-0) + 2) # move crane from truck to container
@@ -383,6 +429,7 @@ def LUstateCopy(state): # Copies an LU state
     copy.moves = state.moves.copy() # moves array is tuples, so this works
     copy.times = state.times.copy()
     copy.cranePos = state.cranePos
+    copy.hasContainer = state.hasContainer
 
     return copy
 
@@ -390,6 +437,10 @@ def LUstateCheck(state, checkedStates): # checks if state and states in list are
     ship = state.ship
     for i in range(len(checkedStates)): # for all checked states
         curState = checkedStates[i]
+        if(state.cranePos != curState.cranePos):
+            continue
+        if(state.hasContainer != curState.hasContainer): # container attachment not equal, not equivolent
+            continue
         if(len(state.loads) != len(curState.loads)): # states have unequal loads, not equivolent
             continue
         if(len(state.unloads) != len(curState.unloads)): # states have unequal unloads, not equivolent
@@ -402,8 +453,6 @@ def LUstateCheck(state, checkedStates): # checks if state and states in list are
                     same = False
         if(same): # if same, return true
             return True
-        else: # else keep checking
-            continue
     return False # return false if all checked states are different from states
 
 #---------------GENERAL HELPER FUNCTIONS------------------------------------
@@ -643,7 +692,7 @@ def LUmovement(ship,r1,c1,r2,c2):
                 [sg.Column([[sg.Text('Weight: ' + str(c.weight), font=body_font)]], justification='center')],   
                 [sg.Column([[sg.Button(f'{str(row).zfill(2)},{str(col).zfill(2)}') for col in range(1,13)] for row in range(11,0,-1)], justification='center')],
                 [sg.Column([[sg.Button('Add Log', key='LUmov_addLog'), sg.Button('NEXT', key='LUmov_next'), sg.Button('Login', key='LUmov_login')]], justification='center')],
-                [sg.Column([[sg.Text('Estimated Move Time: ' + str(estimatedTimeMove), font=body_font), sg.Text('Estimated Total Time: ' + str(estimatedTimeTotal), font=body_font)]], justification='center')],
+                [sg.Column([[sg.Text('Estimated Move Time: ' + estimatedTimeMove + '\t', font=body_font), sg.Text('Estimated Total Time: ' + estimatedTimeTotal, font=body_font)]], justification='center')],
             ]
     window = sg.Window("SAIL ENTERPRISE - Move", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
     for field in window.element_list(): # loop updates the button colors on grid to match manifest given
@@ -667,6 +716,17 @@ def LUmovement(ship,r1,c1,r2,c2):
                     else:
                         field.update(button_color=("black","black"))
     return window
+
+#---------------ALGORITHM RUNNING METHOD------------------------------------
+def algorithmRunning():
+    my_img = sg.Image(filename=(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'img', 'SaIL.png')), key='-sail_logo-')
+    
+    layout =[
+                [sg.Column([[my_img]], justification='center')],
+                [sg.Column([[sg.Text('\nAlgorithm in Progress...',font=heading_font)]], justification='center')],
+                [sg.Column([[sg.Text('Please Wait',font=heading_font)]], justification='center')],
+            ]
+    return sg.Window("SAIL ENTERPRISE - Algorithm in Progress", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
 
 #---------------LOAD SAVED DATA------------------------------------
 # Gets all .saved files
@@ -693,7 +753,7 @@ if(selectedJob == 1): # unload was in progress
     currMove = int(file.read()) # retrieve current move
     file.close()
     file = open(totalTimeFile,'r')
-    estimatedTimeTotal = int(file.read()) # retrieve total estimated time
+    estimatedTimeTotal = file.read() # retrieve total estimated time
     file.close()
     file = open(shipNameFile,'r')
     shipName = file.read() # retrieve ship name
@@ -832,30 +892,35 @@ while True:             # Event Loop
             window.close()
             window = selectJob() # REDIRECT to job selection window
         else:
-            sg.popup("The algorithm will now run after you hit OK. This may take some time.",title="Starting Algorithm")
-            goal = LUjob(ship,loads,unloads) # run job
-            estimatedTimeTotal = goal.g # get estimated time
-            moves = goal.moves # get move list
-            times = goal.times # get estimated move times
-            currMove = 0 # index of current move
-            r1,c1,r2,c2 = retrieveInds(moves,currMove)
-            animationList = getAnimationList(ship,r1,c1,r2,c2) # retrieves animation list
-            animationInd = 1 # index of current animation (0 is already green to start)
-            animationLen = len(animationList)
-            estimatedTimeMove = times[currMove] # get current move estimated time
-            pickle.dump(moves, open(backupMovesFile, 'wb')) # backup moves
-            pickle.dump(times, open(backupTimesFile, 'wb')) # backup times
-            grid2Manifest(ship,backupManifestFile) # backup ship state
-            backupLoads(loads,backupLoadsFile) # backup loads
-            file = open(currentMoveFile,'w')
-            file.write(str(currMove)) # backup current move
-            file.close()
-            file = open(totalTimeFile,'w')
-            file.write(str(estimatedTimeTotal)) # backup total estimated time
-            file.close()
-            jobOngoing = True
             window.close()
-            window = LUmovement(ship,r1,c1,r2,c2) # generate window based off move and initial ship state
+            window = algorithmRunning() # display algorith running screen
+            window.perform_long_operation(lambda : LUjob(ship,loads,unloads), '-algorithm_complete-') # performs job as a thread
+
+    elif event == '-algorithm_complete-': # thread is complete
+        goal = values[event] # get solution
+        estimatedTimeTotal = str(datetime.timedelta(minutes=goal.g))[:-3] # get estimated time
+        moves = goal.moves # get move list
+        times = goal.times # get estimated move times
+        currMove = 0 # index of current move
+        r1,c1,r2,c2 = retrieveInds(moves,currMove)
+        animationList = getAnimationList(ship,r1,c1,r2,c2) # retrieves animation list
+        animationInd = 1 # index of current animation (0 is already green to start)
+        animationLen = len(animationList)
+        estimatedTimeMove = times[currMove] # get current move estimated time
+        pickle.dump(moves, open(backupMovesFile, 'wb')) # backup moves
+        pickle.dump(times, open(backupTimesFile, 'wb')) # backup times
+        grid2Manifest(ship,backupManifestFile) # backup ship state
+        backupLoads(loads,backupLoadsFile) # backup loads
+        file = open(currentMoveFile,'w')
+        file.write(str(currMove)) # backup current move
+        file.close()
+        file = open(totalTimeFile,'w')
+        file.write(estimatedTimeTotal) # backup total estimated time
+        file.close()
+        jobOngoing = True
+        sg.popup("Algorithm Complete! Click 'OK' to begin performing the job.",title="Success")
+        window.close()
+        window = LUmovement(ship,r1,c1,r2,c2) # generate window based off move and initial ship state
 
     # ADD CONTAINER PROCESS
     elif event == 'add_add': # add container button on add window
