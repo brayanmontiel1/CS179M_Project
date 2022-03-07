@@ -575,7 +575,7 @@ def uploadManifest():
                 [sg.Column([[sg.Button('Submit Manifest', key='upload_submit')]], justification='center')],
                 [sg.Column([[sg.Button('View Manifest', key='upload_view')]], justification='center')],
                 [sg.Column([[sg.Button('Cancel', key='upload_cancel')]], justification='center')],
-                [sg.Column([[sg.Text('', font=body_font, key = '_text2_', visible = True)]], justification='center')],
+                [sg.Column([[sg.Multiline('', size=(200, 100), font=body_font, key = '_text2_', visible = True)]], justification='center')],
             ]
     return sg.Window("SAIL ENTERPRISE - Upload Manifest", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
 
