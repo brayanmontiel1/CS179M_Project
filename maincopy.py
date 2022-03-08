@@ -601,6 +601,21 @@ def loginWindow():
             ]
     return sg.Window("SAIL ENTERPRISE - Login", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
 
+def LUloginWindow():
+    #currUser : user that is logged in 
+    #center items using columns : [sg.Column([ ], justification='center')]
+    #adjust filename if needed for your pc -- Remember to change at production time
+    #my_img = sg.Image(filename='CS179M_Project/img/SaIL.png', key='-sail_logo-')
+    my_img = sg.Image(filename=(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'img', 'SaIL.png')), key='-sail_logo-')
+    
+    layout =[
+                [sg.Column([[my_img]], justification='center')],
+                [sg.Column([[sg.Text('Enter username: ', font=body_font)]], justification='center')],  
+                [sg.Column([[sg.Input(justification='center', key='-usrnmLU-')]], justification='center')], 
+                [sg.Column([[sg.Button('Login', key='LUlogin_login'), sg.Button('Cancel', key='LUlogin_cancel')]], justification='center')],
+            ]
+    return sg.Window("SAIL ENTERPRISE - Login", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
+
 #---------------JOB SELECTION METHOD------------------------------------
 def selectJob(): 
     #my_img = sg.Image(filename='CS179M_Project/img/SaIL.png', key='-sail_logo-')
@@ -685,7 +700,7 @@ def LUmovement(ship,r1,c1,r2,c2):
         else: # internal move
             moveMsg = "[" + str(r1+1).zfill(2) + "][" + str(c1+1).zfill(2) + "] to [" + str(r2+1).zfill(2) + "][" + str(c2+1).zfill(2) + "]"
     layout =[
-                [sg.Column([[sg.Text('Current User: ' + currUser ,font=body_font)]], justification='left')],  
+                [sg.Column([[sg.Text('Current User: ' + currUser ,font=body_font, key='LU_currUser')]], justification='left')],  
                 [sg.Column([[sg.Text('Ship: ' + str(shipName), font=body_font)]], justification='left')],
                 [sg.Column([[sg.Text('Move: ' + moveMsg, font=body_font)]], justification='center')],
                 [sg.Column([[sg.Text('Description: ' + c.desc, font=body_font)]], justification='center')],
@@ -996,7 +1011,27 @@ while True:             # Event Loop
             window = LUmovement(ship,r1,c1,r2,c2) # else, generate new window based on new ship and next move
     
     elif event == 'LUmov_login':
-        pass
+        jobOngoing = False
+        prevWindow = window
+        prevWindow.Hide()
+        window = LUloginWindow() # REDIRECT to job selection window
+
+    elif event == 'LUlogin_login':
+        login(values['-usrnmLU-']) # updates currUser and logs sign in/off
+        print("Username:", currUser)
+        print('Login Successful - Foward to JOB SELECTION')
+        window.close()
+        window = prevWindow
+        window['LU_currUser'].update('Current User: {}'.format(currUser))
+        window.UnHide()
+        jobOngoing = True
+
+    elif event == 'LUlogin_cancel':
+        print('Login Canceled - Return to JOB SELECTION')
+        window.close()
+        window = prevWindow
+        window.UnHide()
+        jobOngoing = True
 
     elif event == sg.TIMEOUT_KEY:
         if(jobOngoing):
