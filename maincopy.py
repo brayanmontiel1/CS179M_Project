@@ -668,6 +668,19 @@ def addContainer():
             ]
     return sg.Window("SAIL ENTERPRISE - Add New Container", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
 
+#---------------ADD LOG WINDOW METHOD-------------------------------------
+def addLogWindow():
+    layout =[
+                [sg.Column([[sg.Text('Current User: ' + currUser ,font=body_font)]], justification='left')],  
+                [sg.Column([[sg.Text('Ship: ' + str(shipName), font=body_font)]], justification='left')],
+                [sg.Column([[sg.Text('Enter the information to push to the log: ',font=body_font)]], justification='Center')],   
+                [sg.Column([[sg.Input(justification='center', key='-dscLU-')]], justification='center')],
+                [sg.Column([[sg.Button('Add Log', key='LUadd_add'), sg.Button('Cancel', key='LUadd_cancel')]], justification='center')],
+                [sg.Column([[sg.Text('WARNING: You will not be able to change a log once it is added to the log',font=body_font)]], justification='Center')],
+            ]
+    return sg.Window("SAIL ENTERPRISE - Add New Container", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
+
+
 #---------------MOVEMENT METHOD------------------------------------
 def LUmovement(ship,r1,c1,r2,c2):
     # gets correct move message and container we are moving
@@ -995,8 +1008,29 @@ while True:             # Event Loop
             window.close()
             window = LUmovement(ship,r1,c1,r2,c2) # else, generate new window based on new ship and next move
     
-    elif event == 'LUmov_login':
-        pass
+    elif event == 'LUmov_addLog':
+
+        jobOngoing = False
+        prevWindow = window
+        prevWindow.Hide()
+        window = addLogWindow()
+
+    elif event == 'LUadd_add':
+
+        window.close()
+        window = prevWindow
+        window.UnHide()
+        addLog(values['-dscLU-'])
+        jobOngoing = True
+
+    elif event == 'LUadd_cancel':
+
+        window.close()
+        window = prevWindow
+        window.UnHide()
+        jobOngoing = True
+
+
 
     elif event == sg.TIMEOUT_KEY:
         if(jobOngoing):
