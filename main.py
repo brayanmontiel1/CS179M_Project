@@ -25,6 +25,8 @@ animationInd = -1 # stores the index for the animation
 animationLen = 0 # stores length of aniation
 estimatedTimeTotal = '' # stores estimated time of entire job
 estimatedTimeMove = '' # stores estimated time of particular move (crane move time + container move time)
+numContainers = 0
+numNAN = 0
 
 #---------------CLASSES------------------------------------
 class Container(object):
@@ -98,6 +100,7 @@ def loadManifest(filename): # loads 2D array with manifest
     # track container numbers
     global containerNum
     containerNum = 1
+    numNAN = 0
     # make 2D array (10 row x 12 col)
     manifest = np.empty([10, 12], dtype = Container)
     try:
@@ -122,6 +125,7 @@ def loadManifest(filename): # loads 2D array with manifest
                 containerNum+=1
             elif(c.desc == "NAN"):
                 c.num = -1
+                numNAN += 1
             else:
                 c.num = 0
 
@@ -140,10 +144,10 @@ def loadManifest(filename): # loads 2D array with manifest
                 manifest[col][row] = c
 
     except:
-        return np.empty([10, 12], dtype = Container)
+        return np.empty([10, 12], dtype = Container), 0
 
     # return array
-    return manifest
+    return manifest, numNAN
 
 def grid2Manifest(ship, filename): # uploads 2D array into manifest format
 
@@ -1421,12 +1425,13 @@ while True:             # Event Loop
         manifest = values['-manifest-'] # get input
         #outputting manifest to window
         #updating window to print manifest
-        ship = loadManifest(manifest) # load manifest into array
+        ship, numNAN = loadManifest(manifest) # load manifest into array
         if(ship[0][0] == None):
             sg.popup("Invalid manifest file, try again.",title="File Read Error") # Error message if mainfest file invalid            
         else:
             manifest = os.path.basename(manifest) # get manifest file name
-            addLog("Manifest " + manifest + " is opened, there are " + str(containerNum-1) + " containers on the ship") # push log                
+            numContainers = containerNum-1
+            addLog("Manifest " + manifest + " is opened, there are " + str(numContainers) + " containers on the ship") # push log                
             shipName = manifest[:-4] # remove ".txt" from manifest to get ship name
             file = open(shipNameFile,'w')
             file.write(shipName)
@@ -1460,15 +1465,21 @@ while True:             # Event Loop
         col = int(event[ind+1:])-1
         if(ship[row][col].num > 0): # find container they select and check if its a valid container
             if (row,col) not in unloads:
-                unloads.append((row,col)) # add to loads if not already selected
+                unloads.append((row,col)) # add to unloads if not already selected
+                numContainers -= 1
                 window[event].update(button_color=("white","green"))
                 loadedMsg= "Selected container \"" + ship[row][col].desc + "\" Click button again to de-select it."
                 window['_text1_'].update("\nAction: " + loadedMsg)
             else:
-                unloads.remove((row,col)) # remove from loads if button was already selected
-                window[event].update(button_color=("white","grey"))
-                loadedMsg= "De-select container \"" + ship[row][col].desc + "\" Click button again to select it."
-                window['_text1_'].update("\nAction: " + loadedMsg)
+                if numContainers == (96-numNAN): # check overflow
+                    loadedMsg= "Can not de-select container \"" + ship[row][col].desc + "\" the ship can not hold any more containers"
+                    window['_text1_'].update("\nWarning: " + loadedMsg)
+                else:
+                    unloads.remove((row,col)) # remove from unloads if button was already selected
+                    numContainers += 1
+                    window[event].update(button_color=("white","grey"))
+                    loadedMsg= "De-select container \"" + ship[row][col].desc + "\" Click button again to select it."
+                    window['_text1_'].update("\nAction: " + loadedMsg)
 
     elif event == 'grid_start': # NOT FINISHED
         loadedMsg = ''
@@ -1530,14 +1541,19 @@ while True:             # Event Loop
     elif event == 'add_add': # add container button on add window
         description = str(values['-dsc-'])
         weight = int(values['-wgt-'])
-        if(len(description) > 256) or (weight < 0) or (weight > 99999): # check validity of inputs
+        if (description == "") or (description.isspace()): # check empty of only whitespace
+            sg.popup("Description must contain at least one character",title="Input Error")
+        elif(len(description) > 256) or (weight < 0) or (weight > 99999): # check validity of inputs
             sg.popup("Invalid weight or description length",title="Input Error")
+        elif (numContainers == (96-numNAN)): # check overflow
+            sg.popup("The ship can not hold any more containers. Please select more containers for unload if you wish to add more loads.",title="Warning")
         else:
             c = Container() # create new container
             c.weight = weight
             c.desc = description
             c.num = containerNum
             containerNum+=1
+            numContainers += 1
             loads.append(c) # add to loads
             sg.popup("Successfully added container to load list.",title="Success")
             window.close()
