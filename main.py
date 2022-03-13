@@ -1251,7 +1251,7 @@ def addLogWindow():
                 [sg.Column([[sg.Button('Add Log', key='LUadd_add'), sg.Button('Cancel', key='LUadd_cancel')]], justification='center')],
                 [sg.Column([[sg.Text('WARNING: You will not be able to change a log once it is added to the log',font=body_font)]], justification='Center')],
             ]
-    return sg.Window("SAIL ENTERPRISE - Add New Container", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
+    return sg.Window("SAIL ENTERPRISE - Add New Log", layout, size=(1000, 700), resizable=True, grab_anywhere=True, margins=(0, 0), finalize=True)
 
 #--------------- LU MOVEMENT METHOD------------------------------------
 def movement(ship,r1,c1,r2,c2):
