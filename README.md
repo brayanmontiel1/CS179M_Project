@@ -1,7 +1,7 @@
 # CS179M_Project
-This is the official git repository for CS179M Artificial Intelligence Project.
-Requirements: Python --> https://www.python.org/downloads/
-Additional Libraries needed for software listed below.
+This is the official git repository for CS179M Artificial Intelligence Project. <br />
+Requirements: Python --> https://www.python.org/downloads/ <br />
+Additional Libraries needed for software listed below. <br />
 
 ## Install PySimpleGUI 
 ```
