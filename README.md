@@ -2,12 +2,12 @@
 This is the official git repository for CS179M Artificial Intelligence Project.
 Requirements: Python --> https://www.python.org/downloads/
 
-##Install PySimpleGUI
+## Install PySimpleGUI
 ```
 $ pip install pysimplegui
 ```
 
-##Install Pandas
+## Install Pandas
 ```
 $ pip install pandas
 ```
