@@ -1,1 +1,1 @@
-ShipCase1
+exampleManifest3
