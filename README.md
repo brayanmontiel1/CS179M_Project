@@ -12,3 +12,8 @@ $ pip install pysimplegui
 ```
 $ pip install numpy
 ```
+## Running main.py
+To run the software, simply make sure you are in the project directory folder and type the command below.
+```
+$ python3 main.py
+```
